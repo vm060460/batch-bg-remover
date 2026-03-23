@@ -885,119 +885,129 @@ function render() {
 
 // ─── Core: remove bg ─────────────────────────────────
 async function removeBg(origUrl) {
-  const tol = parseInt(document.getElementById('slTol').value);
-  const shrink = parseInt(document.getElementById('slShrink').value);
+  const tol     = parseInt(document.getElementById('slTol').value);
+  const shrink  = parseInt(document.getElementById('slShrink').value);
   const feather = parseInt(document.getElementById('slFeather').value);
 
   return new Promise((res, rej) => {
     const img = new Image();
     img.onload = () => {
-      const cv = document.getElementById('wc');
-      cv.width = img.width;
+      const cv  = document.getElementById('wc');
+      cv.width  = img.width;
       cv.height = img.height;
       const ctx = cv.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(img, 0, 0);
 
-      const W = cv.width, H = cv.height;
+      const W = cv.width, H = cv.height, N = W * H;
       const id = ctx.getImageData(0, 0, W, H);
-      const d = id.data;
+      const d  = id.data;
 
-      // Build mask: 0 = bg (remove), 255 = fg (keep)
-      const mask = new Uint8Array(W * H);
-
+      // ── Step 1: per-pixel colour match ──────────────────
+      // isBg[p] = 1 if pixel colour matches background colour
+      const isBg = new Uint8Array(N);
       for (let i = 0; i < d.length; i += 4) {
         const r = d[i], g = d[i+1], b = d[i+2];
         let bg = false;
 
         if (mode === 'white' || mode === 'both') {
           const bright = (r + g + b) / 3;
-          const maxC = Math.max(r, g, b), minC = Math.min(r, g, b);
-          const sat = maxC === 0 ? 0 : (maxC - minC) / maxC * 255;
-          if (bright >= 255 - tol && sat <= tol * 0.6) bg = true;
+          const maxC   = Math.max(r, g, b);
+          const minC   = Math.min(r, g, b);
+          const sat    = maxC === 0 ? 0 : (maxC - minC) / maxC * 255;
+          if (bright >= 255 - tol && sat <= tol * 0.65) bg = true;
         }
 
         if (!bg && (mode === 'green' || mode === 'both')) {
           const dom = g - Math.max(r, b);
-          if (dom > (45 - tol * 0.25) && g > 55 && r < 200 && b < 200) bg = true;
+          if (dom > (42 - tol * 0.28) && g > 50 && r < 210 && b < 210) bg = true;
         }
 
-        mask[i >> 2] = bg ? 0 : 255;
+        isBg[i >> 2] = bg ? 1 : 0;
       }
 
-      // Flood-fill from corners to only remove connected bg
-      // (avoids removing interior white/green shapes)
-      const visited = new Uint8Array(W * H);
-      const stack = [];
-      const corners = [0, W-1, W*(H-1), W*H-1];
-      corners.forEach(c => { if (mask[c] === 0 && !visited[c]) { visited[c] = 1; stack.push(c); } });
-      const topEdge = [], bottomEdge = [];
-      for (let x = 0; x < W; x++) {
-        if (mask[x] === 0 && !visited[x]) { visited[x] = 1; stack.push(x); }
-        const b = W*(H-1)+x;
-        if (mask[b] === 0 && !visited[b]) { visited[b] = 1; stack.push(b); }
+      // ── Step 2: flood-fill from ALL four edges ───────────
+      // Finds the outer background (connected to border).
+      // Uses iterative flood with a typed-array stack for speed.
+      const outerBg = new Uint8Array(N); // 1 = confirmed outer background
+      const stack   = new Int32Array(N);
+      let   top     = 0;
+
+      function seedEdge(p) {
+        if (isBg[p] && !outerBg[p]) { outerBg[p] = 1; stack[top++] = p; }
       }
-      for (let y = 0; y < H; y++) {
-        const l = y*W, r2 = y*W+W-1;
-        if (mask[l] === 0 && !visited[l]) { visited[l] = 1; stack.push(l); }
-        if (mask[r2] === 0 && !visited[r2]) { visited[r2] = 1; stack.push(r2); }
+      for (let x = 0; x < W; x++) { seedEdge(x); seedEdge((H-1)*W + x); }
+      for (let y = 0; y < H; y++) { seedEdge(y*W); seedEdge(y*W + W-1); }
+
+      while (top > 0) {
+        const p = stack[--top];
+        const x = p % W, y = (p / W) | 0;
+        if (x > 0   && isBg[p-1]   && !outerBg[p-1])   { outerBg[p-1]   = 1; stack[top++] = p-1; }
+        if (x < W-1 && isBg[p+1]   && !outerBg[p+1])   { outerBg[p+1]   = 1; stack[top++] = p+1; }
+        if (y > 0   && isBg[p-W]   && !outerBg[p-W])   { outerBg[p-W]   = 1; stack[top++] = p-W; }
+        if (y < H-1 && isBg[p+W]   && !outerBg[p+W])   { outerBg[p+W]   = 1; stack[top++] = p+W; }
       }
 
-      while (stack.length) {
-        const p = stack.pop();
-        const x = p % W, y = (p / W)|0;
-        mask[p] = 0; // confirmed background
-        const ns = [p-1, p+1, p-W, p+W];
-        const nx = [x-1, x+1, x, x];
-        const ny = [y, y, y-1, y+1];
-        for (let k = 0; k < 4; k++) {
-          const nx2 = nx[k], ny2 = ny[k];
-          if (nx2 < 0 || nx2 >= W || ny2 < 0 || ny2 >= H) continue;
-          const np = ny2*W + nx2;
-          if (!visited[np] && mask[np] === 0) { visited[np] = 1; stack.push(np); }
-        }
+      // ── Step 3: detect interior holes ───────────────────
+      // Strategy: dilate the FOREGROUND outward by a few px.
+      // Any bg pixel that the dilated foreground fully surrounds
+      // is an interior hole (e.g. inside a mug).
+      //
+      // Implementation: flood-fill from edges on a map where
+      // fg pixels act as walls.  Pixels NOT reached = interior holes.
+      //
+      // We use isBg as the "passable" map (only bg pixels can be reached),
+      // but we block passages that run through foreground pixels.
+      // Then bg pixels still not reached after the edge-flood are holes.
+
+      // A pixel is "reachable from outside" if it can be reached via
+      // bg-only paths from the image border → already computed as outerBg.
+      // So interior hole = isBg[p] && !outerBg[p].
+
+      // ── Step 4: build final removal mask ────────────────
+      // Remove = outerBg OR interior hole
+      const remove = new Uint8Array(N);
+      for (let p = 0; p < N; p++) {
+        // outer background
+        if (outerBg[p]) { remove[p] = 1; continue; }
+        // interior hole: colour matches bg but NOT reachable from outside
+        if (isBg[p])    { remove[p] = 1; }
       }
 
-      // Mark only flood-filled pixels as transparent (leave unconnected bg alone)
-      const finalMask = new Uint8Array(W * H);
-      for (let i = 0; i < W * H; i++) {
-        finalMask[i] = (mask[i] === 0 && visited[i]) ? 0 : 255;
-      }
-
-      // Shrink edges
+      // ── Step 5: shrink foreground edges ─────────────────
       if (shrink > 0) {
-        const copy = new Uint8Array(finalMask);
+        const copy = new Uint8Array(remove);
         for (let y = 0; y < H; y++) {
           for (let x = 0; x < W; x++) {
             const p = y * W + x;
-            if (copy[p] === 255) {
-              let hasTransp = false;
+            if (copy[p] === 0) { // foreground pixel
+              let nearBg = false;
               outer: for (let dy = -shrink; dy <= shrink; dy++) {
                 for (let dx = -shrink; dx <= shrink; dx++) {
-                  const nx2 = x+dx, ny2 = y+dy;
-                  if (nx2 >= 0 && nx2 < W && ny2 >= 0 && ny2 < H) {
-                    if (copy[ny2*W + nx2] === 0) { hasTransp = true; break outer; }
+                  const nx = x+dx, ny = y+dy;
+                  if (nx >= 0 && nx < W && ny >= 0 && ny < H && copy[ny*W+nx] === 1) {
+                    nearBg = true; break outer;
                   }
                 }
               }
-              if (hasTransp) finalMask[p] = 0;
+              if (nearBg) remove[p] = 1;
             }
           }
         }
       }
 
-      // Apply mask + feathering
+      // ── Step 6: apply alpha + feather ───────────────────
       for (let i = 0; i < d.length; i += 4) {
         const p = i >> 2;
-        if (finalMask[p] === 0) {
+        if (remove[p]) {
           d[i+3] = 0;
         } else if (feather > 0) {
-          const x = p % W, y = (p / W)|0;
+          const x = p % W, y = (p / W) | 0;
           let minDist = feather + 1;
           for (let dy = -feather; dy <= feather; dy++) {
             for (let dx = -feather; dx <= feather; dx++) {
-              const nx2 = x+dx, ny2 = y+dy;
-              if (nx2 >= 0 && nx2 < W && ny2 >= 0 && ny2 < H) {
-                if (finalMask[ny2*W + nx2] === 0) {
+              const nx = x+dx, ny = y+dy;
+              if (nx >= 0 && nx < W && ny >= 0 && ny < H) {
+                if (remove[ny*W+nx]) {
                   const dist = Math.sqrt(dx*dx + dy*dy);
                   if (dist < minDist) minDist = dist;
                 }
