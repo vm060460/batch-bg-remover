@@ -3,1159 +3,891 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>單色背景大量去背工具 v2</title>
+<title>單色背景大量去背工具</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Serif+TC:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --ink: #0e0e12;
-  --ink2: #1a1a22;
-  --ink3: #252530;
-  --line: #2e2e3e;
-  --lime: #c8ff00;
-  --lime2: #a8d800;
-  --cyan: #00e5c8;
-  --red: #ff3d5a;
-  --text: #d8d8e8;
-  --muted: #5a5a72;
-  --dim: #3a3a4e;
+/* ──────── THEME ──────── */
+:root{
+  --bg:#f0f2f5;--bg2:#fff;--bg3:#e8eaed;--bg4:#dde0e7;
+  --bdr:#cdd1da;--bdr2:#adb3bf;
+  --acc:#2d8a00;--acc2:#1f6600;--acc-a:rgba(45,138,0,.1);
+  --acc-t:#fff;
+  --cyan:#0088aa;--ora:#b85000;--red:#bb1122;
+  --txt:#1a1c1f;--mut:#6b7280;--dim:#9ca3af;
+  --card:#fff;--cbdr:#d8dce6;
+  --sh:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.05);
+  --sh2:0 2px 12px rgba(0,0,0,.14);
+  --prog-bg:#e0e3e8;
+}
+[data-theme=dark]{
+  --bg:#0c0c12;--bg2:#151520;--bg3:#1e1e2c;--bg4:#252535;
+  --bdr:#28283c;--bdr2:#343450;
+  --acc:#b8f000;--acc2:#96c800;--acc-a:rgba(184,240,0,.09);
+  --acc-t:#0c0c12;
+  --cyan:#00dfc8;--ora:#ff8c00;--red:#ff3a58;
+  --txt:#d0d0e8;--mut:#52526e;--dim:#2e2e44;
+  --card:#151520;--cbdr:#28283c;
+  --sh:none;--sh2:none;
+  --prog-bg:#28283c;
 }
 
-html { scroll-behavior: smooth; }
-
-body {
-  background: var(--ink);
-  color: var(--text);
-  font-family: 'DM Sans', sans-serif;
-  min-height: 100vh;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-/* ── noise overlay ── */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  opacity: .025;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 999;
-}
-
-/* ── layout ── */
-.shell {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  min-height: 100vh;
-}
-
-/* ── sidebar ── */
-aside {
-  background: var(--ink2);
-  border-right: 1px solid var(--line);
-  padding: 28px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
-}
-
-.logo {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.logo-title {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 32px;
-  letter-spacing: 2px;
-  color: var(--lime);
-  line-height: 1;
-}
-
-.logo-sub {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-
-.divider {
-  height: 1px;
-  background: var(--line);
-}
-
-/* mode selector */
-.section-label {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-
-.mode-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.mode-card {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px 14px;
-  cursor: pointer;
-  transition: all .18s;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: transparent;
-  color: var(--text);
-  width: 100%;
-  text-align: left;
-}
-
-.mode-card:hover { border-color: var(--dim); background: var(--ink3); }
-
-.mode-card.active {
-  border-color: var(--lime);
-  background: rgba(200,255,0,.06);
-}
-
-.mode-icon {
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-.mode-info { flex: 1; }
-
-.mode-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.mode-card.active .mode-name { color: var(--lime); }
-
-.mode-desc {
-  font-size: 11px;
-  color: var(--muted);
-  margin-top: 1px;
-}
-
-/* sliders */
-.slider-group { display: flex; flex-direction: column; gap: 12px; }
-
-.slider-item { display: flex; flex-direction: column; gap: 6px; }
-
-.slider-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.slider-name {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text);
-}
-
-.slider-val {
-  font-family: 'DM Mono', monospace;
-  font-size: 12px;
-  color: var(--lime);
-}
-
-input[type=range] {
-  -webkit-appearance: none;
-  width: 100%;
-  height: 3px;
-  background: var(--line);
-  border-radius: 2px;
-  outline: none;
-  cursor: pointer;
-}
-
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  background: var(--lime);
-  border-radius: 50%;
-  cursor: pointer;
-  transition: transform .15s;
-}
-
-input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.25); }
-
-/* action btns */
-.sidebar-actions { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
-
-.btn {
-  padding: 12px 20px;
-  border: none;
-  border-radius: 6px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all .18s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  letter-spacing: .02em;
-}
-
-.btn-run {
-  background: var(--lime);
-  color: #0e0e12;
-}
-
-.btn-run:hover:not(:disabled) { background: var(--lime2); transform: translateY(-1px); }
-.btn-run:active { transform: translateY(0); }
-.btn-run:disabled { background: var(--dim); color: var(--muted); cursor: not-allowed; }
-
-.btn-outline {
-  background: transparent;
-  border: 1px solid var(--line);
-  color: var(--muted);
-}
-
-.btn-outline:hover { border-color: var(--text); color: var(--text); }
-
-.btn-dl {
-  background: var(--cyan);
-  color: #0e0e12;
-  display: none;
-}
-
-.btn-dl.show { display: flex; }
-.btn-dl:hover { opacity: .88; transform: translateY(-1px); }
-
-/* ── main area ── */
-main {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-/* drop zone */
-.drop-area {
-  border: 2px dashed var(--line);
-  margin: 24px;
-  border-radius: 12px;
-  padding: 52px 24px;
-  text-align: center;
-  cursor: pointer;
-  transition: all .22s;
-  background: var(--ink2);
-  position: relative;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.drop-area::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at 50% 100%, rgba(200,255,0,.05) 0%, transparent 70%);
-  opacity: 0;
-  transition: opacity .3s;
-}
-
-.drop-area:hover, .drop-area.over {
-  border-color: var(--lime);
-  background: rgba(200,255,0,.03);
-}
-
-.drop-area:hover::before, .drop-area.over::before { opacity: 1; }
-
-.drop-icon-wrap {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 16px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  background: var(--ink3);
-  transition: all .22s;
-  position: relative;
-}
-
-.drop-area:hover .drop-icon-wrap, .drop-area.over .drop-icon-wrap {
-  border-color: var(--lime);
-  box-shadow: 0 0 24px rgba(200,255,0,.15);
-}
-
-.drop-title {
-  font-size: 17px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.drop-hint {
-  font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.drop-hint em {
-  color: var(--lime);
-  font-style: normal;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-#fileInput { display: none; }
-
-/* progress */
-.progress-bar-wrap {
-  height: 3px;
-  background: var(--line);
-  margin: 0 24px;
-  border-radius: 2px;
-  overflow: hidden;
-  display: none;
-  flex-shrink: 0;
-}
-
-.progress-bar-wrap.show { display: block; }
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--lime), var(--cyan));
-  width: 0%;
-  transition: width .25s ease;
-  border-radius: 2px;
-}
-
-/* status row */
-.status-row {
-  padding: 10px 28px;
-  font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  color: var(--muted);
-  min-height: 34px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.status-row.ok { color: var(--lime); }
-.status-row.err { color: var(--red); }
-
-.status-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
-}
-
-/* grid */
-.grid-header {
-  padding: 4px 24px 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.grid-count {
-  font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.grid-count strong { color: var(--lime); }
-
-.clear-link {
-  font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  color: var(--muted);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  background: none;
-  border: none;
-}
-
-.clear-link:hover { color: var(--red); }
-
-.img-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: 10px;
-  padding: 0 24px 32px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-/* card */
-.img-card {
-  background: var(--ink2);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
-  position: relative;
-  transition: border-color .18s;
-}
-
-.img-card[data-status="processing"] { border-color: var(--cyan); }
-.img-card[data-status="done"] { border-color: var(--lime); }
-.img-card[data-status="error"] { border-color: var(--red); }
-
-.card-thumb-wrap {
-  aspect-ratio: 1;
-  background:
-    repeating-conic-gradient(var(--ink3) 0% 25%, var(--ink2) 0% 50%)
-    0 0 / 18px 18px;
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.card-thumb {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-  transition: opacity .2s;
-}
-
-.card-thumb:hover { opacity: .85; }
-
-.card-footer {
-  padding: 6px 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.card-name {
-  flex: 1;
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.card-badge {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  flex-shrink: 0;
-}
-
-.card-badge.processing {
-  background: rgba(0,229,200,.15);
-  color: var(--cyan);
-  animation: spin .8s linear infinite;
-}
-
-.card-badge.done {
-  background: rgba(200,255,0,.15);
-  color: var(--lime);
-}
-
-.card-badge.error {
-  background: rgba(255,61,90,.15);
-  color: var(--red);
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* dl single btn on card */
-.card-dl {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: rgba(200,255,0,.85);
-  color: #0e0e12;
-  border: none;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 7px;
-  cursor: pointer;
-  display: none;
-  font-family: 'DM Mono', monospace;
-  transition: all .15s;
-}
-
-.card-dl:hover { background: var(--lime); transform: scale(1.05); }
-.img-card[data-status="done"] .card-dl { display: block; }
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--txt);font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.5;transition:background .22s,color .22s}
+
+/* ──────── GLOBAL DROP ──────── */
+#gDrop{position:fixed;inset:0;z-index:9999;pointer-events:none;display:flex;align-items:center;justify-content:center;background:rgba(45,138,0,.06);border:3px dashed var(--acc);opacity:0;transition:opacity .18s}
+[data-theme=dark] #gDrop{background:rgba(184,240,0,.06)}
+#gDrop.show{opacity:1}
+.gd-box{text-align:center}
+.gd-ico{font-size:64px;margin-bottom:12px}
+.gd-txt{font-size:22px;font-weight:700;color:var(--acc)}
+
+/* ──────── LAYOUT ──────── */
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* ──────── SIDEBAR ──────── */
+.sb{width:272px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--bdr);display:flex;flex-direction:column;height:100vh;overflow:hidden;box-shadow:var(--sh)}
+.sb-brand{padding:14px 16px 11px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+.sb-title{font-family:'Noto Serif TC',serif;font-size:14.5px;font-weight:900;color:var(--txt);line-height:1.4}
+.sb-title em{color:var(--acc);font-style:normal}
+.sb-author{font-family:'DM Mono',monospace;font-size:9px;color:var(--mut);margin-top:3px}
+.sb-panels{flex:1;overflow-y:auto;padding:8px 11px 4px;scrollbar-width:thin}
+.sb-panels::-webkit-scrollbar{width:3px}
+.sb-panels::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
+.sb-footer{padding:9px 11px 11px;border-top:1px solid var(--bdr);flex-shrink:0;display:flex;flex-direction:column;gap:5px}
+
+/* ──────── COLLAPSIBLE PANEL ──────── */
+.pnl{margin-bottom:5px}
+.pnl-hd{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border:1px solid var(--bdr);border-radius:7px;cursor:pointer;background:var(--bg3);transition:all .13s;user-select:none;gap:6px}
+.pnl-hd:hover{border-color:var(--bdr2);background:var(--bg4)}
+.pnl-hd.o{border-bottom-left-radius:0;border-bottom-right-radius:0;border-color:var(--bdr2)}
+.pnl-ttl{font-size:11.5px;font-weight:600;color:var(--txt);flex:1}
+.pnl-arr{font-size:9px;color:var(--mut);transition:transform .18s;flex-shrink:0}
+.pnl-hd.o .pnl-arr{transform:rotate(180deg)}
+.pnl-bd{border:1px solid var(--bdr2);border-top:none;border-radius:0 0 7px 7px;padding:10px 11px;background:var(--bg3);display:none}
+.pnl-bd.o{display:block}
+
+/* ──────── MODES ──────── */
+.m-list{display:flex;flex-direction:column;gap:3px}
+.mc{border:1px solid var(--bdr);border-radius:6px;padding:7px 10px;cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:8px;background:transparent;color:var(--txt);width:100%;text-align:left}
+.mc:hover{border-color:var(--bdr2);background:var(--bg4)}
+.mc.on{border-color:var(--acc);background:var(--acc-a)}
+.mc-ico{font-size:14px;flex-shrink:0;width:18px;text-align:center}
+.mc-name{font-size:11.5px;font-weight:600}.mc.on .mc-name{color:var(--acc)}
+.mc-desc{font-size:9px;color:var(--mut);margin-top:1px}
+.more-btn{width:100%;padding:5px 9px;background:transparent;border:1px dashed var(--bdr2);border-radius:6px;color:var(--mut);font-size:11px;cursor:pointer;transition:all .12s;font-family:'DM Sans',sans-serif;margin-top:3px}
+.more-btn:hover{border-color:var(--bdr);color:var(--txt)}
+.xtra{display:none;flex-direction:column;gap:3px;margin-top:3px}
+.xtra.on{display:flex}
+.cc-row{display:none;align-items:center;gap:7px;margin-top:6px;background:var(--bg4);border:1px solid var(--bdr);border-radius:6px;padding:6px 9px}
+.cc-row.on{display:flex}
+.cc-row label{font-size:10px;color:var(--mut);flex-shrink:0}
+#cpick{width:28px;height:24px;border:none;border-radius:3px;cursor:pointer;background:transparent;padding:0}
+#chex{flex:1;background:var(--bg2);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-family:'DM Mono',monospace;font-size:10px;padding:3px 6px;outline:none}
+#chex:focus{border-color:var(--acc)}
+
+/* ──────── CONTROLS ──────── */
+.slabel{font-family:'DM Mono',monospace;font-size:9px;color:var(--mut);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+.pdiv{height:1px;background:var(--bdr);margin:7px 0}
+.chk-list{display:flex;flex-direction:column;gap:6px}
+.chk-row{display:flex;align-items:flex-start;gap:7px;cursor:pointer}
+.chk-row input[type=checkbox]{width:13px;height:13px;flex-shrink:0;margin-top:2px;accent-color:var(--acc);cursor:pointer}
+.chk-lbl{font-size:11.5px;color:var(--txt);line-height:1.4}
+.chk-sub{font-size:9px;color:var(--mut);margin-top:1px}
+.sub-row{display:none;margin-top:6px;padding:7px 9px;background:var(--bg4);border:1px solid var(--bdr);border-radius:6px}
+.sub-row.on{display:block}
+.sl-list{display:flex;flex-direction:column;gap:9px}
+.sl-it{display:flex;flex-direction:column;gap:4px}
+.sl-hd{display:flex;justify-content:space-between;align-items:baseline}
+.sl-nm{font-size:11px;font-weight:500}
+.sl-vl{font-family:'DM Mono',monospace;font-size:11px;color:var(--acc)}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--bdr);border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--acc);border-radius:50%;cursor:pointer;transition:transform .12s}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.3)}
+.cr-opts{display:flex;flex-direction:column;gap:3px}
+.cr-opt{display:flex;align-items:center;gap:7px;cursor:pointer;border:1px solid var(--bdr);border-radius:5px;padding:6px 9px;transition:all .12s}
+.cr-opt:hover{border-color:var(--bdr2)}
+.cr-opt input[type=radio]{accent-color:var(--acc);cursor:pointer;flex-shrink:0}
+.cr-opt-lbl{font-size:11.5px}
+.cr-opt.on{border-color:var(--acc);background:var(--acc-a)}
+.uni-inputs{display:flex;align-items:center;gap:5px;margin-top:5px}
+.uni-n{width:60px;background:var(--bg2);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-family:'DM Mono',monospace;font-size:11px;padding:4px 5px;outline:none;text-align:center}
+.uni-n:focus{border-color:var(--acc)}
+
+/* ──────── SIDEBAR BUTTONS ──────── */
+.btn{padding:11px 14px;border:none;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .14s;display:flex;align-items:center;justify-content:center;gap:7px;width:100%}
+.btn-go{background:var(--acc);color:var(--acc-t)}
+.btn-go:hover:not(:disabled){background:var(--acc2);transform:translateY(-1px)}
+.btn-go:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn-re{background:var(--bg3);color:var(--mut);border:1px solid var(--bdr)}
+.btn-re:hover:not(:disabled){background:var(--bg4);color:var(--txt);border-color:var(--bdr2)}
+.btn-re:disabled{opacity:.4;cursor:not-allowed}
+.btn-dl{background:var(--cyan);color:#fff}
+.btn-dl:hover{opacity:.86;transform:translateY(-1px)}
+.btn-clr{background:transparent;border:1px solid var(--bdr);color:var(--mut)}
+.btn-clr:hover{border-color:var(--red);color:var(--red)}
+
+/* ──────── MAIN AREA ──────── */
+main{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;min-width:0}
+.top-bar{padding:9px 16px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--bg2);box-shadow:var(--sh)}
+.add-btn{display:flex;align-items:center;gap:6px;border:1px dashed var(--bdr2);border-radius:7px;padding:7px 16px;cursor:pointer;transition:all .14s;background:transparent;color:var(--mut);font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500}
+.add-btn:hover{border-color:var(--acc);color:var(--acc);background:var(--acc-a)}
+#fileIn{display:none}
+.top-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.top-stats{font-family:'DM Mono',monospace;font-size:10px;color:var(--mut);display:flex;align-items:center;gap:10px}
+.top-stats strong{color:var(--acc)}
+.tgl-btn{padding:5px 10px;border:1px solid var(--bdr);border-radius:6px;background:transparent;color:var(--mut);font-size:11.5px;cursor:pointer;transition:all .12s;font-family:'DM Sans',sans-serif;white-space:nowrap}
+.tgl-btn:hover{border-color:var(--bdr2);color:var(--txt)}
+.lang-sel{padding:5px 9px;border:1px solid var(--bdr);border-radius:6px;background:var(--bg2);color:var(--txt);font-size:11.5px;cursor:pointer;font-family:'DM Sans',sans-serif;outline:none}
+.lang-sel:focus{border-color:var(--acc)}
+
+/* ──────── PROGRESS & STATUS ──────── */
+.prog-wrap{height:4px;background:var(--prog-bg);flex-shrink:0;display:none}
+.prog-wrap.on{display:block}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--acc),var(--cyan));width:0%;transition:width .22s ease}
+.stat-bar{padding:5px 16px;font-family:'DM Mono',monospace;font-size:10.5px;color:var(--mut);flex-shrink:0;min-height:24px;display:flex;align-items:center;gap:5px}
+.stat-bar.ok{color:var(--acc)}.stat-bar.er{color:var(--red)}
+.stat-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+/* ──────── IMAGE GRID ──────── */
+.img-scroll{flex:1;overflow-y:auto;padding:12px 14px 20px;scrollbar-width:thin}
+.img-scroll::-webkit-scrollbar{width:5px}
+.img-scroll::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:3px}
 
 /* empty state */
-.empty-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: var(--muted);
-  padding-bottom: 60px;
-  font-family: 'DM Mono', monospace;
-  font-size: 12px;
+.empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;cursor:pointer}
+.empty-ico{font-size:64px;opacity:.14;transition:opacity .2s}
+.empty-ttl{font-size:18px;font-weight:600;color:var(--dim)}
+.empty-sub{font-family:'DM Mono',monospace;font-size:12px;color:var(--dim)}
+.empty:hover .empty-ico{opacity:.26}
+
+.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+
+/* ──────── CARD ──────── */
+.img-card{background:var(--card);border:1.5px solid var(--cbdr);border-radius:10px;overflow:hidden;position:relative;transition:border-color .14s,box-shadow .14s,transform .14s;box-shadow:var(--sh)}
+.img-card:hover{box-shadow:var(--sh2);transform:translateY(-1px)}
+.img-card[data-s=processing]{border-color:var(--cyan)}
+.img-card[data-s=done]{border-color:var(--acc)}
+.img-card[data-s=error]{border-color:var(--red)}
+
+/* thumb */
+.cthumb{
+  aspect-ratio:1;
+  background:repeating-conic-gradient(var(--bg3) 0% 25%,var(--bg2) 0% 50%) 0 0/16px 16px;
+  overflow:hidden;cursor:pointer;position:relative;flex-shrink:0
 }
+.cthumb img{width:100%;height:100%;object-fit:contain;display:block;transition:opacity .14s}
+.cthumb:hover img{opacity:.82}
 
-.empty-icon { font-size: 36px; opacity: .3; }
-
-/* preview overlay */
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(8,8,12,.9);
-  backdrop-filter: blur(12px);
-  z-index: 200;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
+/* ─── CARD ACTION BUTTONS — vertical right panel ─── */
+.cactions{
+  position:absolute;top:0;right:0;bottom:0;
+  width:52px;
+  display:none;
+  flex-direction:column;gap:0;
+  background:linear-gradient(to left, rgba(0,0,0,.62) 0%, transparent 100%);
+  align-items:flex-end;justify-content:center;padding:6px 6px 6px 0;
+  opacity:0;transition:opacity .15s
 }
-
-.overlay.open { display: flex; }
-
-.preview-modal {
-  background: var(--ink2);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 20px;
-  max-width: 700px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
+.img-card:hover .cactions{opacity:1}
+.img-card[data-s=done] .cactions,.img-card[data-s=error] .cactions{display:flex}
+.cact{
+  width:42px;height:42px;
+  border:none;border-radius:8px;
+  cursor:pointer;transition:all .13s;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  font-family:'DM Sans',sans-serif;font-weight:700;
+  box-shadow:0 2px 8px rgba(0,0,0,.3);
+  margin-bottom:5px;flex-shrink:0
 }
+.cact:last-child{margin-bottom:0}
+.cact-ico{font-size:16px;line-height:1}
+.cact-lbl{font-size:8.5px;line-height:1;letter-spacing:.02em}
+.cact-prev{background:rgba(255,255,255,.94);color:#222}
+.cact-prev:hover{background:#fff;transform:scale(1.06)}
+.cact-dl{background:rgba(0,160,80,.92);color:#fff}
+.cact-dl:hover{background:#00a050;transform:scale(1.06)}
+.cact-crop{background:rgba(0,160,220,.92);color:#fff}
+.cact-crop:hover{background:#0090cc;transform:scale(1.06)}
+.cact-retry{background:rgba(220,100,0,.92);color:#fff}
+.cact-retry:hover{background:#dd6400;transform:scale(1.06)}
 
-.preview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
+/* card info */
+.cinfo{padding:8px 10px 7px}
+.cname{font-family:'DM Mono',monospace;font-size:10px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.csize-orig{font-family:'DM Mono',monospace;font-size:9.5px;color:var(--mut)}
+.csize-out{font-family:'DM Mono',monospace;font-size:9.5px;color:var(--acc);margin-top:1px}
+.cfilesize{font-family:'DM Mono',monospace;font-size:9px;color:var(--dim);margin-top:2px}
+.cbadge-row{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.cbadge{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0}
+.cbadge.processing{background:rgba(0,136,170,.14);color:var(--cyan);animation:spin .8s linear infinite}
+.cbadge.done{background:rgba(45,138,0,.14);color:var(--acc)}
+.cbadge.error{background:rgba(187,17,34,.14);color:var(--red)}
+[data-theme=dark] .cbadge.processing{background:rgba(0,223,200,.15);color:var(--cyan)}
+[data-theme=dark] .cbadge.done{background:rgba(184,240,0,.15);color:var(--acc)}
+[data-theme=dark] .cbadge.error{background:rgba(255,58,88,.15);color:var(--red)}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-.preview-title {
-  font-family: 'DM Mono', monospace;
-  font-size: 12px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 85%;
-}
+/* ──────── OVERLAYS ──────── */
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
+[data-theme=dark] .ovl{background:rgba(7,7,14,.88)}
+.ovl.on{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--bdr);border-radius:13px;padding:20px;max-width:700px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:var(--sh2)}
+.modal-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.modal-ttl{font-family:'DM Mono',monospace;font-size:11px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:86%}
+.modal-x{background:none;border:none;color:var(--mut);font-size:18px;cursor:pointer;flex-shrink:0;line-height:1}
+.modal-x:hover{color:var(--txt)}
+.prev-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.plbl{font-family:'DM Mono',monospace;font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.pbox{border-radius:7px;overflow:hidden;border:1px solid var(--bdr);background:repeating-conic-gradient(var(--bg3) 0% 25%,var(--bg2) 0% 50%) 0 0/12px 12px}
+.pbox img{width:100%;display:block}
 
-.preview-close {
-  background: none;
-  border: none;
-  color: var(--muted);
-  font-size: 20px;
-  cursor: pointer;
-  flex-shrink: 0;
-  line-height: 1;
-}
+/* crop modal */
+.crop-wrap{border-radius:8px;overflow:hidden;border:1px solid var(--bdr);background:repeating-conic-gradient(var(--bg3) 0% 25%,var(--bg2) 0% 50%) 0 0/12px 12px;display:flex;align-items:center;justify-content:center;max-height:360px}
+#cpCanvas{max-width:100%;max-height:350px;display:block}
+.crop-modes{display:flex;gap:5px;margin-top:10px}
+.cm-btn{flex:1;padding:8px;border:1px solid var(--bdr);border-radius:6px;background:transparent;color:var(--mut);font-size:11.5px;font-weight:600;cursor:pointer;transition:all .12s;font-family:'DM Sans',sans-serif}
+.cm-btn.on{border-color:var(--acc);background:var(--acc-a);color:var(--acc)}
+.crop-acts{display:flex;gap:8px;margin-top:10px}
+.btnca,.btncd{flex:1;padding:11px;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .13s}
+.btnca{background:var(--acc);color:var(--acc-t)}.btnca:hover{background:var(--acc2)}
+.btncd{background:var(--cyan);color:#fff}.btncd:hover{opacity:.86}
 
-.preview-close:hover { color: var(--text); }
+/* toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--bdr);border-radius:9px;padding:10px 16px;font-size:12px;box-shadow:var(--sh2);z-index:8000;opacity:0;transform:translateY(8px);transition:all .22s;pointer-events:none}
+.toast.on{opacity:1;transform:translateY(0)}
+.toast.ok{border-color:var(--acc);color:var(--acc)}
+.toast.er{border-color:var(--red);color:var(--red)}
 
-.preview-pair {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.preview-cell {}
-
-.preview-cell-label {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  margin-bottom: 6px;
-}
-
-.preview-cell-img {
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  background:
-    repeating-conic-gradient(#252530 0% 25%, #1a1a22 0% 50%)
-    0 0 / 16px 16px;
-}
-
-.preview-cell-img img {
-  width: 100%;
-  display: block;
-  border-radius: 6px;
-}
-
-/* scrollbars */
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
-
-/* responsive */
-@media (max-width: 680px) {
-  .shell { grid-template-columns: 1fr; }
-  aside {
-    position: relative;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--line);
-  }
-  .sidebar-actions { flex-direction: row; flex-wrap: wrap; }
-  .img-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:3px}
 </style>
 </head>
-<body>
+<body data-theme="light">
 
-<div class="shell">
+<div id="gDrop"><div class="gd-box"><div class="gd-ico">📂</div><div class="gd-txt" id="gdTxt">放開以加入圖片</div></div></div>
+<div class="toast" id="toast"></div>
 
-  <!-- ── SIDEBAR ── -->
-  <aside>
-    <div class="logo">
-      <div class="logo-title">BatchCut</div>
-      <div class="logo-sub">批次去背工具 · 100% 本地端</div>
-    </div>
+<div class="app">
+<!-- ══════════ SIDEBAR ══════════ -->
+<div class="sb">
+  <div class="sb-brand">
+    <div class="sb-title" id="sbTitle">單色背景<em>大量去背</em>工具</div>
+    <div class="sb-author" id="sbAuthor">作者：闕雪 ｜ 本地端處理</div>
+  </div>
 
-    <div class="divider"></div>
+  <div class="sb-panels">
 
-    <div>
-      <div class="section-label">去背模式</div>
-      <div class="mode-grid">
-        <button class="mode-card active" onclick="setMode('white', this)">
-          <span class="mode-icon">⬜</span>
-          <div class="mode-info">
-            <div class="mode-name">白色背景</div>
-            <div class="mode-desc">White / Light Background</div>
-          </div>
-        </button>
-        <button class="mode-card" onclick="setMode('green', this)">
-          <span class="mode-icon">🟩</span>
-          <div class="mode-info">
-            <div class="mode-name">綠幕 Chroma</div>
-            <div class="mode-desc">Green Screen Removal</div>
-          </div>
-        </button>
-        <button class="mode-card" onclick="setMode('both', this)">
-          <span class="mode-icon">✦</span>
-          <div class="mode-info">
-            <div class="mode-name">白底 ＋ 綠幕</div>
-            <div class="mode-desc">Remove Both</div>
-          </div>
-        </button>
-      </div>
-    </div>
-
-    <div class="divider"></div>
-
-    <div>
-      <div class="section-label">參數設定</div>
-      <div class="slider-group">
-        <div class="slider-item">
-          <div class="slider-header">
-            <span class="slider-name">容差 Tolerance</span>
-            <span class="slider-val" id="tolVal">35</span>
-          </div>
-          <input type="range" id="slTol" min="5" max="120" value="35"
-            oninput="document.getElementById('tolVal').textContent=this.value">
+    <!-- 去背模式 -->
+    <div class="pnl">
+      <div class="pnl-hd o" onclick="tp(this)"><span class="pnl-ttl">🎯 <span data-i="mT">去背模式</span></span><span class="pnl-arr">▼</span></div>
+      <div class="pnl-bd o">
+        <div class="m-list">
+          <button class="mc" onclick="setM('white',this)"><span class="mc-ico">⬜</span><div><div class="mc-name" data-i="mW">白色背景</div><div class="mc-desc">White BG</div></div></button>
+          <button class="mc on" onclick="setM('green',this)"><span class="mc-ico">🟩</span><div><div class="mc-name" data-i="mG">綠幕 Chroma</div><div class="mc-desc">Green Screen</div></div></button>
         </div>
-        <div class="slider-item">
-          <div class="slider-header">
-            <span class="slider-name">縮邊 Shrink</span>
-            <span class="slider-val" id="shrinkVal">1</span>
-          </div>
-          <input type="range" id="slShrink" min="0" max="8" value="1"
-            oninput="document.getElementById('shrinkVal').textContent=this.value">
+        <button class="more-btn" id="moreBtn" onclick="tMore()">▸ <span data-i="mMore">更多模式…</span></button>
+        <div class="xtra" id="xtra">
+          <button class="mc" onclick="setM('blue',this)"><span class="mc-ico">🟦</span><div><div class="mc-name" data-i="mB">藍幕</div><div class="mc-desc">Blue Screen</div></div></button>
+          <button class="mc" onclick="setM('both',this)"><span class="mc-ico">✦</span><div><div class="mc-name" data-i="mBo">白底＋綠幕</div><div class="mc-desc">Both</div></div></button>
+          <button class="mc" onclick="setM('custom',this)"><span class="mc-ico">🎨</span><div><div class="mc-name" data-i="mC">自訂顏色</div><div class="mc-desc">Custom Color</div></div></button>
+          <button class="mc" onclick="setM('complex',this)"><span class="mc-ico">🌄</span><div><div class="mc-name" data-i="mX">複雜背景</div><div class="mc-desc">Edge Detection</div></div></button>
         </div>
-        <div class="slider-item">
-          <div class="slider-header">
-            <span class="slider-name">羽化 Feather</span>
-            <span class="slider-val" id="featherVal">1</span>
-          </div>
-          <input type="range" id="slFeather" min="0" max="8" value="1"
-            oninput="document.getElementById('featherVal').textContent=this.value">
+        <div class="cc-row" id="ccRow">
+          <label data-i="pickC">選色</label>
+          <input type="color" id="cpick" value="#ff0000" oninput="sHex(this.value)">
+          <input type="text" id="chex" value="#ff0000" maxlength="7" oninput="sPicker(this.value)" placeholder="#rrggbb">
         </div>
       </div>
     </div>
 
-    <div class="divider"></div>
-
-    <div class="sidebar-actions">
-      <button class="btn btn-run" id="runBtn" onclick="runAll()" disabled>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <polygon points="3,1 13,7 3,13" fill="currentColor"/>
-        </svg>
-        開始去背
-      </button>
-      <button class="btn btn-dl" id="dlAllBtn" onclick="downloadAll()">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M7 1v8M4 7l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-        下載全部 ZIP
-      </button>
-      <button class="btn btn-outline" onclick="clearAll()">清除</button>
-    </div>
-  </aside>
-
-  <!-- ── MAIN ── -->
-  <main>
-    <!-- drop zone -->
-    <div class="drop-area" id="dropArea"
-      ondragover="ev(event,'over')" ondragleave="ev(event,'leave')" ondrop="ev(event,'drop')"
-      onclick="document.getElementById('fileInput').click()">
-      <div class="drop-icon-wrap">📁</div>
-      <div class="drop-title">拖曳圖片到這裡</div>
-      <div class="drop-hint">支援 JPG · PNG · WEBP · BMP &nbsp;｜&nbsp; <em>點擊瀏覽</em> 或直接拖放多張</div>
-    </div>
-    <input type="file" id="fileInput" multiple accept="image/*" onchange="addFiles(this.files)">
-
-    <!-- progress -->
-    <div class="progress-bar-wrap" id="progWrap">
-      <div class="progress-fill" id="progFill"></div>
+    <!-- 進階選項 (預設展開) -->
+    <div class="pnl">
+      <div class="pnl-hd o" onclick="tp(this)"><span class="pnl-ttl">⚙️ <span data-i="aT">進階選項</span></span><span class="pnl-arr">▼</span></div>
+      <div class="pnl-bd o">
+        <div class="chk-list">
+          <label class="chk-row"><input type="checkbox" id="chkG"><div><div class="chk-lbl" data-i="gL">玻璃/半透明材質</div><div class="chk-sub" data-i="gS">保留玻璃透明感</div></div></label>
+          <label class="chk-row"><input type="checkbox" id="chkH"><div><div class="chk-lbl" data-i="hL">去除內部封閉區塊</div><div class="chk-sub" data-i="hS">如馬克杯中間</div></div></label>
+          <!-- 壓縮 -->
+          <label class="chk-row"><input type="checkbox" id="chkCp" onchange="tCp()"><div><div class="chk-lbl" data-i="cpL">壓縮圖片大小</div><div class="chk-sub" data-i="cpS">保留尺寸，降低檔案大小</div></div></label>
+          <div class="sub-row" id="cpRow">
+            <div class="sl-hd"><span class="sl-nm" data-i="qual">品質</span><span class="sl-vl" id="qualV">82</span>%</div>
+            <input type="range" id="slQ" min="20" max="99" value="82" oninput="sv('qualV',this.value)">
+            <div style="font-size:9px;color:var(--mut);margin-top:4px;font-family:'DM Mono',monospace" data-i="cpNote">PNG → 優化壓縮 ｜ JPG/WEBP → 品質調整</div>
+          </div>
+          <!-- 加白底預覽 -->
+          <label class="chk-row"><input type="checkbox" id="chkWbg"><div><div class="chk-lbl" data-i="wbgL">白底預覽模式</div><div class="chk-sub" data-i="wbgS">卡片以白色背景顯示去背結果</div></div></label>
+          <!-- 自動去色邊 -->
+          <label class="chk-row"><input type="checkbox" id="chkDefringe" checked><div><div class="chk-lbl" data-i="dfL">自動去色邊</div><div class="chk-sub" data-i="dfS">消除邊緣殘留背景色</div></div></label>
+        </div>
+      </div>
     </div>
 
-    <!-- status -->
-    <div class="status-row" id="statusRow"></div>
-
-    <!-- grid or empty -->
-    <div id="emptyState" class="empty-state">
-      <div class="empty-icon">🖼</div>
-      <span>尚未加入任何圖片</span>
+    <!-- 參數設定 (摺疊) -->
+    <div class="pnl">
+      <div class="pnl-hd" onclick="tp(this)"><span class="pnl-ttl">🎛 <span data-i="pT">參數設定</span></span><span class="pnl-arr">▼</span></div>
+      <div class="pnl-bd">
+        <div class="sl-list">
+          <div class="sl-it"><div class="sl-hd"><span class="sl-nm" data-i="tol">容差</span><span class="sl-vl" id="tolV">40</span></div><input type="range" id="slTol" min="5" max="130" value="40" oninput="sv('tolV',this.value)"></div>
+          <div class="sl-it"><div class="sl-hd"><span class="sl-nm" data-i="shr">縮邊</span><span class="sl-vl" id="shrV">1</span></div><input type="range" id="slShr" min="0" max="10" value="1" oninput="sv('shrV',this.value)"></div>
+          <div class="sl-it"><div class="sl-hd"><span class="sl-nm" data-i="fth">羽化</span><span class="sl-vl" id="fthV">2</span></div><input type="range" id="slFth" min="0" max="10" value="2" oninput="sv('fthV',this.value)"></div>
+        </div>
+      </div>
     </div>
 
-    <div id="gridHeader" class="grid-header" style="display:none">
-      <div class="grid-count">共 <strong id="totalCount">0</strong> 張</div>
-      <button class="clear-link" onclick="clearAll()">清除全部</button>
+    <!-- 裁切設定 (預設展開) -->
+    <div class="pnl">
+      <div class="pnl-hd o" onclick="tp(this)"><span class="pnl-ttl">✂ <span data-i="cT">裁切設定</span></span><span class="pnl-arr">▼</span></div>
+      <div class="pnl-bd o">
+        <div class="slabel" data-i="bCrop">批次裁切</div>
+        <div class="cr-opts">
+          <label class="cr-opt on" onclick="setCM('none',this)"><input type="radio" name="cm" value="none" checked><span class="cr-opt-lbl" data-i="cNone">不裁切</span></label>
+          <label class="cr-opt" onclick="setCM('tight',this)"><input type="radio" name="cm" value="tight"><span class="cr-opt-lbl" data-i="cTight">全裁切（緊貼物件）</span></label>
+          <label class="cr-opt" onclick="setCM('pad',this)"><input type="radio" name="cm" value="pad"><span class="cr-opt-lbl" data-i="cPad">裁切＋保留邊框</span></label>
+        </div>
+        <div class="sub-row" id="padRow">
+          <div class="sl-hd"><span class="sl-nm" data-i="padSz">邊框大小</span><span class="sl-vl" id="padV">80</span> px</div>
+          <input type="range" id="slPad" min="10" max="200" value="80" oninput="sv('padV',this.value)">
+        </div>
+        <div class="pdiv"></div>
+        <label class="chk-row" style="margin-bottom:5px">
+          <input type="checkbox" id="chkUni" onchange="tUni()">
+          <div><div class="chk-lbl" data-i="uniL">統一輸出尺寸</div><div class="chk-sub" data-i="uniS">圖片置中對齊</div></div>
+        </label>
+        <div class="sub-row" id="uniRow">
+          <div class="uni-inputs">
+            <input type="number" class="uni-n" id="uniW" value="800" min="1" max="9999">
+            <span style="font-size:11px;color:var(--mut)">×</span>
+            <input type="number" class="uni-n" id="uniH" value="800" min="1" max="9999">
+            <span style="font-size:10px;color:var(--mut)">px</span>
+          </div>
+          <div style="font-size:9px;color:var(--mut);font-family:'DM Mono',monospace;margin-top:4px" data-i="uniNote">置中縮放，超出處為透明</div>
+        </div>
+      </div>
     </div>
 
-    <div class="img-grid" id="imgGrid"></div>
-  </main>
+  </div><!-- /sb-panels -->
+
+  <div class="sb-footer">
+    <button class="btn btn-go" id="btnGo" onclick="runAll(false)" disabled>
+      <svg width="11" height="11" viewBox="0 0 14 14"><polygon points="3,1 13,7 3,13" fill="currentColor"/></svg>
+      <span data-i="goPend">開始去背（未處理）</span>
+    </button>
+    <button class="btn btn-re" id="btnRe" onclick="runAll(true)" disabled>
+      <svg width="11" height="11" viewBox="0 0 14 14"><polygon points="3,1 13,7 3,13" fill="currentColor"/></svg>
+      <span data-i="goAll">重新處理全部</span>
+    </button>
+    <button class="btn btn-dl" id="btnDl" onclick="dlAll()">
+      <svg width="11" height="11" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 7l3 3 3-3M2 12h10" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span data-i="dlAll">下載全部 ZIP</span>
+    </button>
+    <button class="btn btn-clr" onclick="clearAll()">🗑 <span data-i="clr">清除全部</span></button>
+  </div>
 </div>
 
-<!-- preview overlay -->
-<div class="overlay" id="overlay" onclick="closePreview(event)">
-  <div class="preview-modal">
-    <div class="preview-header">
-      <div class="preview-title" id="prevTitle"></div>
-      <button class="preview-close" onclick="closePreview()">✕</button>
+<!-- ══════════ MAIN ══════════ -->
+<main>
+  <div class="top-bar">
+    <button class="add-btn" onclick="document.getElementById('fileIn').click()">📂 <span data-i="add">加入圖片</span></button>
+    <input type="file" id="fileIn" multiple accept="image/*" onchange="addFiles(this.files)">
+    <div class="top-r">
+      <div class="top-stats">
+        <span data-i="tot">共</span> <strong id="totN">0</strong> <span data-i="zhn">張</span>
+        <span id="doneW" style="display:none"><span data-i="dn">完成</span> <strong id="doneN">0</strong></span>
+      </div>
+      <select class="lang-sel" id="langSel" onchange="setLang(this.value)">
+        <option value="zh-TW">繁體中文</option>
+        <option value="zh-CN">简体中文</option>
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+        <option value="ko">한국어</option>
+      </select>
+      <button class="tgl-btn" id="thmBtn" onclick="tTheme()">🌙 <span data-i="dark">夜間</span></button>
     </div>
-    <div class="preview-pair">
-      <div class="preview-cell">
-        <div class="preview-cell-label">原圖</div>
-        <div class="preview-cell-img"><img id="prevOrig" src="" alt="original"></div>
-      </div>
-      <div class="preview-cell">
-        <div class="preview-cell-label">去背結果</div>
-        <div class="preview-cell-img"><img id="prevResult" src="" alt="result"></div>
-      </div>
+  </div>
+  <div class="prog-wrap" id="progW"><div class="prog-fill" id="progF"></div></div>
+  <div class="stat-bar" id="statBar"></div>
+  <div class="img-scroll" id="imgScroll">
+    <div class="empty" id="emptyS" onclick="document.getElementById('fileIn').click()">
+      <div class="empty-ico">🖼</div>
+      <div class="empty-ttl" data-i="emT">拖曳或點擊以加入圖片</div>
+      <div class="empty-sub" data-i="emS">支援 JPG · PNG · WEBP · BMP · GIF</div>
+    </div>
+    <div class="img-grid" id="imgGrid" style="display:none"></div>
+  </div>
+</main>
+</div>
+
+<!-- Preview modal -->
+<div class="ovl" id="prevOvl" onclick="cPrev(event)">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-ttl" id="prevTtl"></div><button class="modal-x" onclick="cPrev()">✕</button></div>
+    <div class="prev-pair">
+      <div><div class="plbl" data-i="orig">原圖</div><div class="pbox"><img id="prevOrig" src="" alt=""></div></div>
+      <div><div class="plbl" data-i="res">去背結果</div><div class="pbox"><img id="prevRes" src="" alt=""></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Crop modal -->
+<div class="ovl" id="cropOvl" onclick="cCrop(event)">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-hd"><div class="modal-ttl" id="cropTtl"></div><button class="modal-x" onclick="cCrop()">✕</button></div>
+    <div class="crop-wrap"><canvas id="cpCanvas"></canvas></div>
+    <div class="crop-modes">
+      <button class="cm-btn on" onclick="setCPrev('tight',this)" data-i="cmTight">✂ 全裁切</button>
+      <button class="cm-btn" onclick="setCPrev('pad',this)" id="cmPad">☐ <span data-i="cmPad">保留邊框</span></button>
+    </div>
+    <div class="crop-acts">
+      <button class="btnca" onclick="applyCrop()" data-i="apSv">套用並儲存</button>
+      <button class="btncd" onclick="cropDl()" data-i="crDl">裁切並下載</button>
     </div>
   </div>
 </div>
 
 <canvas id="wc" style="display:none"></canvas>
+<canvas id="wc2" style="display:none"></canvas>
 
 <script>
-// ─── State ───────────────────────────────────────────
-let mode = 'white';
-let items = []; // {file, origUrl, blob, status}
-let busy = false;
-
-// ─── Mode ─────────────────────────────────────────────
-function setMode(m, el) {
-  mode = m;
-  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-}
-
-// ─── Drag & drop ──────────────────────────────────────
-function ev(e, type) {
-  e.preventDefault();
-  const da = document.getElementById('dropArea');
-  if (type === 'over') da.classList.add('over');
-  else if (type === 'leave') da.classList.remove('over');
-  else if (type === 'drop') {
-    da.classList.remove('over');
-    addFiles(e.dataTransfer.files);
-  }
-}
-
-// ─── Add files ────────────────────────────────────────
-function addFiles(files) {
-  let added = 0;
-  for (const f of files) {
-    if (!f.type.startsWith('image/')) continue;
-    items.push({ file: f, origUrl: URL.createObjectURL(f), blob: null, status: 'pending' });
-    added++;
-  }
-  if (added) render();
-}
-
-// ─── Render grid ──────────────────────────────────────
-function render() {
-  const grid = document.getElementById('imgGrid');
-  const empty = document.getElementById('emptyState');
-  const header = document.getElementById('gridHeader');
-  const runBtn = document.getElementById('runBtn');
-
-  if (!items.length) {
-    empty.style.display = 'flex';
-    header.style.display = 'none';
-    grid.innerHTML = '';
-    runBtn.disabled = true;
-    return;
-  }
-
-  empty.style.display = 'none';
-  header.style.display = 'flex';
-  runBtn.disabled = busy;
-  document.getElementById('totalCount').textContent = items.length;
-
-  grid.innerHTML = '';
-  items.forEach((it, i) => {
-    const card = document.createElement('div');
-    card.className = 'img-card';
-    card.dataset.status = it.status;
-
-    // thumb
-    const twrap = document.createElement('div');
-    twrap.className = 'card-thumb-wrap';
-    twrap.title = it.status === 'done' ? '點擊預覽對比' : it.file.name;
-    if (it.status === 'done') twrap.onclick = () => openPreview(i);
-
-    const thumb = document.createElement('img');
-    thumb.className = 'card-thumb';
-    thumb.src = it.blob ? URL.createObjectURL(it.blob) : it.origUrl;
-    thumb.alt = it.file.name;
-
-    twrap.appendChild(thumb);
-    card.appendChild(twrap);
-
-    // dl btn
-    if (it.status === 'done') {
-      const dl = document.createElement('button');
-      dl.className = 'card-dl';
-      dl.textContent = '↓';
-      dl.title = '下載此圖';
-      dl.onclick = (e) => { e.stopPropagation(); dlSingle(it); };
-      card.appendChild(dl);
-    }
-
-    // footer
-    const footer = document.createElement('div');
-    footer.className = 'card-footer';
-
-    const name = document.createElement('div');
-    name.className = 'card-name';
-    name.textContent = it.file.name;
-    footer.appendChild(name);
-
-    if (it.status !== 'pending') {
-      const badge = document.createElement('div');
-      badge.className = `card-badge ${it.status}`;
-      badge.textContent = it.status === 'processing' ? '⟳'
-        : it.status === 'done' ? '✓' : '✕';
-      footer.appendChild(badge);
-    }
-
-    card.appendChild(footer);
-    grid.appendChild(card);
-  });
-}
-
-// ─── Core: remove bg ─────────────────────────────────
-async function removeBg(origUrl) {
-  const tol     = parseInt(document.getElementById('slTol').value);
-  const shrink  = parseInt(document.getElementById('slShrink').value);
-  const feather = parseInt(document.getElementById('slFeather').value);
-
-  return new Promise((res, rej) => {
-    const img = new Image();
-    img.onload = () => {
-      const cv  = document.getElementById('wc');
-      cv.width  = img.width;
-      cv.height = img.height;
-      const ctx = cv.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(img, 0, 0);
-
-      const W = cv.width, H = cv.height, N = W * H;
-      const id = ctx.getImageData(0, 0, W, H);
-      const d  = id.data;
-
-      // ── Step 1: per-pixel colour match ──────────────────
-      // isBg[p] = 1 if pixel colour matches background colour
-      const isBg = new Uint8Array(N);
-      for (let i = 0; i < d.length; i += 4) {
-        const r = d[i], g = d[i+1], b = d[i+2];
-        let bg = false;
-
-        if (mode === 'white' || mode === 'both') {
-          const bright = (r + g + b) / 3;
-          const maxC   = Math.max(r, g, b);
-          const minC   = Math.min(r, g, b);
-          const sat    = maxC === 0 ? 0 : (maxC - minC) / maxC * 255;
-          if (bright >= 255 - tol && sat <= tol * 0.65) bg = true;
-        }
-
-        if (!bg && (mode === 'green' || mode === 'both')) {
-          const dom = g - Math.max(r, b);
-          if (dom > (42 - tol * 0.28) && g > 50 && r < 210 && b < 210) bg = true;
-        }
-
-        isBg[i >> 2] = bg ? 1 : 0;
-      }
-
-      // ── Step 2: flood-fill from ALL four edges ───────────
-      // Finds the outer background (connected to border).
-      // Uses iterative flood with a typed-array stack for speed.
-      const outerBg = new Uint8Array(N); // 1 = confirmed outer background
-      const stack   = new Int32Array(N);
-      let   top     = 0;
-
-      function seedEdge(p) {
-        if (isBg[p] && !outerBg[p]) { outerBg[p] = 1; stack[top++] = p; }
-      }
-      for (let x = 0; x < W; x++) { seedEdge(x); seedEdge((H-1)*W + x); }
-      for (let y = 0; y < H; y++) { seedEdge(y*W); seedEdge(y*W + W-1); }
-
-      while (top > 0) {
-        const p = stack[--top];
-        const x = p % W, y = (p / W) | 0;
-        if (x > 0   && isBg[p-1]   && !outerBg[p-1])   { outerBg[p-1]   = 1; stack[top++] = p-1; }
-        if (x < W-1 && isBg[p+1]   && !outerBg[p+1])   { outerBg[p+1]   = 1; stack[top++] = p+1; }
-        if (y > 0   && isBg[p-W]   && !outerBg[p-W])   { outerBg[p-W]   = 1; stack[top++] = p-W; }
-        if (y < H-1 && isBg[p+W]   && !outerBg[p+W])   { outerBg[p+W]   = 1; stack[top++] = p+W; }
-      }
-
-      // ── Step 3: detect interior holes ───────────────────
-      // Strategy: dilate the FOREGROUND outward by a few px.
-      // Any bg pixel that the dilated foreground fully surrounds
-      // is an interior hole (e.g. inside a mug).
-      //
-      // Implementation: flood-fill from edges on a map where
-      // fg pixels act as walls.  Pixels NOT reached = interior holes.
-      //
-      // We use isBg as the "passable" map (only bg pixels can be reached),
-      // but we block passages that run through foreground pixels.
-      // Then bg pixels still not reached after the edge-flood are holes.
-
-      // A pixel is "reachable from outside" if it can be reached via
-      // bg-only paths from the image border → already computed as outerBg.
-      // So interior hole = isBg[p] && !outerBg[p].
-
-      // ── Step 4: build final removal mask ────────────────
-      // Remove = outerBg OR interior hole
-      const remove = new Uint8Array(N);
-      for (let p = 0; p < N; p++) {
-        // outer background
-        if (outerBg[p]) { remove[p] = 1; continue; }
-        // interior hole: colour matches bg but NOT reachable from outside
-        if (isBg[p])    { remove[p] = 1; }
-      }
-
-      // ── Step 5: shrink foreground edges ─────────────────
-      if (shrink > 0) {
-        const copy = new Uint8Array(remove);
-        for (let y = 0; y < H; y++) {
-          for (let x = 0; x < W; x++) {
-            const p = y * W + x;
-            if (copy[p] === 0) { // foreground pixel
-              let nearBg = false;
-              outer: for (let dy = -shrink; dy <= shrink; dy++) {
-                for (let dx = -shrink; dx <= shrink; dx++) {
-                  const nx = x+dx, ny = y+dy;
-                  if (nx >= 0 && nx < W && ny >= 0 && ny < H && copy[ny*W+nx] === 1) {
-                    nearBg = true; break outer;
-                  }
-                }
-              }
-              if (nearBg) remove[p] = 1;
-            }
-          }
-        }
-      }
-
-      // ── Step 6: apply alpha + feather ───────────────────
-      for (let i = 0; i < d.length; i += 4) {
-        const p = i >> 2;
-        if (remove[p]) {
-          d[i+3] = 0;
-        } else if (feather > 0) {
-          const x = p % W, y = (p / W) | 0;
-          let minDist = feather + 1;
-          for (let dy = -feather; dy <= feather; dy++) {
-            for (let dx = -feather; dx <= feather; dx++) {
-              const nx = x+dx, ny = y+dy;
-              if (nx >= 0 && nx < W && ny >= 0 && ny < H) {
-                if (remove[ny*W+nx]) {
-                  const dist = Math.sqrt(dx*dx + dy*dy);
-                  if (dist < minDist) minDist = dist;
-                }
-              }
-            }
-          }
-          if (minDist <= feather) d[i+3] = Math.round((minDist / feather) * 255);
-        }
-      }
-
-      ctx.putImageData(id, 0, 0);
-      cv.toBlob(blob => res(blob), 'image/png');
-    };
-    img.onerror = rej;
-    img.src = origUrl;
-  });
-}
-
-// ─── Run all ─────────────────────────────────────────
-async function runAll() {
-  if (busy || !items.length) return;
-  busy = true;
-  const runBtn = document.getElementById('runBtn');
-  runBtn.disabled = true;
-  runBtn.textContent = '處理中…';
-  document.getElementById('progWrap').classList.add('show');
-  document.getElementById('dlAllBtn').classList.remove('show');
-
-  let ok = 0, fail = 0;
-  for (let i = 0; i < items.length; i++) {
-    items[i].status = 'processing';
-    render();
-    setStatus(`處理中 ${i+1} / ${items.length}：${items[i].file.name}`);
-    setProgress((i / items.length) * 100);
-
-    try {
-      items[i].blob = await removeBg(items[i].origUrl);
-      items[i].status = 'done';
-      ok++;
-    } catch(e) {
-      items[i].status = 'error';
-      fail++;
-      console.error(e);
-    }
-
-    setProgress(((i+1) / items.length) * 100);
-    render();
-    await tick();
-  }
-
-  busy = false;
-  runBtn.disabled = false;
-  runBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14"><polygon points="3,1 13,7 3,13" fill="currentColor"/></svg> 重新處理`;
-
-  if (ok > 0) document.getElementById('dlAllBtn').classList.add('show');
-
-  const cls = fail ? 'err' : 'ok';
-  setStatus(fail
-    ? `完成：${ok} 成功 / ${fail} 失敗`
-    : `✓ 全部完成，共 ${ok} 張圖片去背成功`, cls);
-}
-
-// ─── Download ─────────────────────────────────────────
-function dlSingle(it) {
-  const name = it.file.name.replace(/\.[^.]+$/, '') + '.png';
-  const url = URL.createObjectURL(it.blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = name; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-async function downloadAll() {
-  const done = items.filter(it => it.blob);
-  if (!done.length) return;
-
-  if (done.length === 1) { dlSingle(done[0]); return; }
-
-  try {
-    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
-    const zip = new JSZip();
-    done.forEach(it => {
-      const name = it.file.name.replace(/\.[^.]+$/, '') + '.png';
-      zip.file(name, it.blob);
-    });
-    const zblob = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(zblob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'batchcut_results.zip'; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  } catch {
-    // fallback: download one by one
-    for (const it of done) {
-      dlSingle(it);
-      await new Promise(r => setTimeout(r, 400));
-    }
-  }
-}
-
-function loadScript(src) {
-  return new Promise((res, rej) => {
-    if (document.querySelector(`script[src="${src}"]`)) { res(); return; }
-    const s = document.createElement('script');
-    s.src = src; s.onload = res; s.onerror = rej;
-    document.head.appendChild(s);
-  });
-}
-
-// ─── Preview ──────────────────────────────────────────
-function openPreview(i) {
-  const it = items[i];
-  document.getElementById('prevTitle').textContent = it.file.name;
-  document.getElementById('prevOrig').src = it.origUrl;
-  document.getElementById('prevResult').src = URL.createObjectURL(it.blob);
-  document.getElementById('overlay').classList.add('open');
-}
-
-function closePreview(e) {
-  if (!e || e.target === document.getElementById('overlay')) {
-    document.getElementById('overlay').classList.remove('open');
-  }
-}
-
-// ─── Clear ────────────────────────────────────────────
-function clearAll() {
-  items = [];
-  document.getElementById('progWrap').classList.remove('show');
-  document.getElementById('dlAllBtn').classList.remove('show');
-  document.getElementById('runBtn').innerHTML =
-    `<svg width="14" height="14" viewBox="0 0 14 14"><polygon points="3,1 13,7 3,13" fill="currentColor"/></svg> 開始去背`;
-  setStatus('');
-  setProgress(0);
+// ════════════ i18n ════════════
+const LL = {
+'zh-TW':{mT:'去背模式',mW:'白色背景',mG:'綠幕 Chroma',mB:'藍幕',mBo:'白底＋綠幕',mC:'自訂顏色',mX:'複雜背景',mMore:'更多模式…',aT:'進階選項',gL:'玻璃/半透明材質',gS:'保留玻璃透明感',hL:'去除內部封閉區塊',hS:'如馬克杯中間',cpL:'壓縮圖片大小',cpS:'保留尺寸，降低檔案大小',qual:'品質',cpNote:'PNG → 優化壓縮 ｜ JPG/WEBP → 品質調整',wbgL:'白底預覽模式',wbgS:'卡片以白色背景顯示',dfL:'自動去色邊',dfS:'消除邊緣殘留背景色',pT:'參數設定',tol:'容差',shr:'縮邊',fth:'羽化',cT:'裁切設定',bCrop:'批次裁切',cNone:'不裁切',cTight:'全裁切（緊貼物件）',cPad:'裁切＋保留邊框',padSz:'邊框大小',uniL:'統一輸出尺寸',uniS:'圖片置中對齊',uniNote:'置中縮放，超出處為透明',goPend:'開始去背（未處理）',goAll:'重新處理全部',dlAll:'下載全部 ZIP',clr:'清除全部',add:'加入圖片',tot:'共',zhn:'張',dn:'完成',dark:'夜間',light:'白天',pickC:'選色',emT:'拖曳或點擊以加入圖片',emS:'支援 JPG · PNG · WEBP · BMP · GIF',orig:'原圖',res:'去背結果',apSv:'套用並儲存',crDl:'裁切並下載',cmTight:'全裁切',cmPad:'保留邊框',gdTxt:'放開以加入圖片',sbTitle:'單色背景<em>大量去背</em>工具',sbAuthor:'作者：闕雪 ｜ 本地端處理',proc:'處理中',allD:'全部完成',smFail:'失敗',retrying:'重新處理',retried:'完成',failed:'失敗',oSz:'原始',rSz:'輸出',fSz:'大小',actPrev:'預覽',actDl:'下載',actCrop:'裁切',actRetry:'重試'},
+'zh-CN':{mT:'去背模式',mW:'白色背景',mG:'绿幕 Chroma',mB:'蓝幕',mBo:'白底＋绿幕',mC:'自定义颜色',mX:'复杂背景',mMore:'更多模式…',aT:'高级选项',gL:'玻璃/半透明材质',gS:'保留玻璃透明感',hL:'去除内部区块',hS:'如马克杯内部',cpL:'压缩图片大小',cpS:'保留尺寸，降低文件大小',qual:'质量',cpNote:'PNG → 优化压缩 ｜ JPG/WEBP → 质量调整',wbgL:'白底预览',wbgS:'以白色背景显示结果',dfL:'自动去色边',dfS:'消除边缘残留背景色',pT:'参数设置',tol:'容差',shr:'收缩边缘',fth:'羽化',cT:'裁切设置',bCrop:'批量裁切',cNone:'不裁切',cTight:'紧贴裁切',cPad:'裁切+保留边框',padSz:'边框大小',uniL:'统一输出尺寸',uniS:'居中对齐',uniNote:'居中缩放，透明填充',goPend:'开始去背（未处理）',goAll:'重新处理全部',dlAll:'下载全部 ZIP',clr:'清除全部',add:'添加图片',tot:'共',zhn:'张',dn:'完成',dark:'夜间',light:'白天',pickC:'选色',emT:'拖拽或点击以添加图片',emS:'支持 JPG · PNG · WEBP · BMP · GIF',orig:'原图',res:'去背结果',apSv:'应用并保存',crDl:'裁切并下载',cmTight:'紧贴裁切',cmPad:'保留边框',gdTxt:'松开以添加图片',sbTitle:'单色背景<em>批量去背</em>工具',sbAuthor:'作者：闕雪 ｜ 本地处理',proc:'处理中',allD:'全部完成',smFail:'失败',retrying:'重新处理',retried:'完成',failed:'失败',oSz:'原始',rSz:'输出',fSz:'大小',actPrev:'预览',actDl:'下载',actCrop:'裁切',actRetry:'重试'},
+'en':{mT:'Mode',mW:'White BG',mG:'Green Screen',mB:'Blue Screen',mBo:'White+Green',mC:'Custom Color',mX:'Complex BG',mMore:'More modes…',aT:'Advanced',gL:'Glass / Semi-transparent',gS:'Preserve glass effect',hL:'Remove interior holes',hS:'e.g. inside a mug',cpL:'Compress output',cpS:'Keep size, reduce file size',qual:'Quality',cpNote:'PNG → optimized ｜ JPG/WEBP → quality',wbgL:'White BG preview',wbgS:'Show result on white',dfL:'Auto defringe',dfS:'Remove edge color spill',pT:'Parameters',tol:'Tolerance',shr:'Shrink',fth:'Feather',cT:'Crop',bCrop:'Batch Crop',cNone:'No crop',cTight:'Tight crop',cPad:'Crop+padding',padSz:'Padding',uniL:'Uniform output size',uniS:'Center all images',uniNote:'Centered, transparent padding',goPend:'Process Pending',goAll:'Reprocess All',dlAll:'Download All ZIP',clr:'Clear All',add:'Add Images',tot:'Total',zhn:'',dn:'Done',dark:'Dark',light:'Light',pickC:'Color',emT:'Drag or click to add images',emS:'JPG · PNG · WEBP · BMP · GIF',orig:'Original',res:'Result',apSv:'Apply & Save',crDl:'Crop & Download',cmTight:'Tight',cmPad:'Padding',gdTxt:'Drop to add',sbTitle:'Batch <em>BG Remover</em>',sbAuthor:'by Xue Que ｜ Runs locally',proc:'Processing',allD:'Done',smFail:'failed',retrying:'Retrying',retried:'Done',failed:'Failed',oSz:'Orig',rSz:'Out',fSz:'Size',actPrev:'View',actDl:'Save',actCrop:'Crop',actRetry:'Retry'},
+'ja':{mT:'除去モード',mW:'白背景',mG:'グリーンスクリーン',mB:'ブルースクリーン',mBo:'白+グリーン',mC:'カスタム色',mX:'複雑な背景',mMore:'他のモード…',aT:'詳細設定',gL:'ガラス/半透明',gS:'透明感を保持',hL:'内部領域を除去',hS:'例: マグカップ内',cpL:'ファイル圧縮',cpS:'サイズ維持、容量削減',qual:'品質',cpNote:'PNG → 最適化 ｜ JPG/WEBP → 品質調整',wbgL:'白背景プレビュー',wbgS:'結果を白背景で表示',dfL:'自動デフリンジ',dfS:'エッジの色にじみ除去',pT:'パラメータ',tol:'許容差',shr:'エッジ縮小',fth:'フェザー',cT:'トリミング',bCrop:'一括トリミング',cNone:'なし',cTight:'タイト',cPad:'余白付き',padSz:'余白',uniL:'統一出力サイズ',uniS:'中央揃え',uniNote:'中央配置、余白は透明',goPend:'未処理を開始',goAll:'全て再処理',dlAll:'ZIP一括DL',clr:'全てクリア',add:'画像を追加',tot:'合計',zhn:'枚',dn:'完了',dark:'ダーク',light:'ライト',pickC:'色選択',emT:'ドラッグまたはクリック',emS:'JPG · PNG · WEBP · BMP · GIF',orig:'元画像',res:'結果',apSv:'適用して保存',crDl:'切り抜きDL',cmTight:'タイト',cmPad:'余白付き',gdTxt:'ドロップして追加',sbTitle:'背景<em>一括除去</em>ツール',sbAuthor:'作: 闕雪 ｜ ローカル処理',proc:'処理中',allD:'完了',smFail:'失敗',retrying:'再処理',retried:'完了',failed:'失敗',oSz:'元',rSz:'出力',fSz:'サイズ',actPrev:'確認',actDl:'保存',actCrop:'切抜',actRetry:'再試'},
+'ko':{mT:'제거 모드',mW:'흰색 배경',mG:'그린 스크린',mB:'블루 스크린',mBo:'흰색+그린',mC:'사용자 색상',mX:'복잡한 배경',mMore:'더 보기…',aT:'고급 설정',gL:'유리/반투명',gS:'유리 효과 유지',hL:'내부 영역 제거',hS:'예: 머그컵 내부',cpL:'파일 압축',cpS:'크기 유지, 용량 감소',qual:'품질',cpNote:'PNG → 최적화 ｜ JPG/WEBP → 품질',wbgL:'흰 배경 미리보기',wbgS:'흰 배경으로 표시',dfL:'자동 디프린지',dfS:'엣지 색상 번짐 제거',pT:'파라미터',tol:'허용값',shr:'수축',fth:'페더',cT:'자르기',bCrop:'일괄 자르기',cNone:'자르지 않음',cTight:'꽉 자르기',cPad:'여백 포함',padSz:'여백',uniL:'통일 출력 크기',uniS:'중앙 정렬',uniNote:'중앙 배치, 여백 투명',goPend:'미처리 시작',goAll:'전체 재처리',dlAll:'ZIP 전체 다운로드',clr:'전체 삭제',add:'이미지 추가',tot:'총',zhn:'장',dn:'완료',dark:'다크',light:'라이트',pickC:'색상',emT:'드래그하거나 클릭',emS:'JPG · PNG · WEBP · BMP · GIF',orig:'원본',res:'결과',apSv:'적용 및 저장',crDl:'자르고 다운로드',cmTight:'꽉',cmPad:'여백',gdTxt:'놓아서 추가',sbTitle:'단색 배경 <em>일괄 제거</em>',sbAuthor:'제작: 闕雪 ｜ 로컬 처리',proc:'처리중',allD:'완료',smFail:'실패',retrying:'재처리',retried:'완료',failed:'실패',oSz:'원본',rSz:'출력',fSz:'크기',actPrev:'미리보기',actDl:'저장',actCrop:'자르기',actRetry:'재시도'}
+};
+let lang='zh-TW', T=LL['zh-TW'];
+function setLang(c){
+  lang=c; T=LL[c]||LL['zh-TW'];
+  document.querySelectorAll('[data-i]').forEach(el=>{const k=el.getAttribute('data-i');if(T[k]!==undefined)el.innerHTML=T[k];});
+  document.getElementById('gdTxt').textContent=T.gdTxt;
+  document.getElementById('sbTitle').innerHTML=T.sbTitle;
+  document.getElementById('sbAuthor').textContent=T.sbAuthor;
+  const dk=document.body.getAttribute('data-theme')==='dark';
+  document.getElementById('thmBtn').innerHTML=(dk?'☀️ '+T.light:'🌙 '+T.dark);
+  document.getElementById('cmPad').innerHTML=`☐ ${T.cmPad} (${document.getElementById('padV').textContent}px)`;
+  document.documentElement.lang=c;
   render();
 }
 
-// ─── Helpers ──────────────────────────────────────────
-function setStatus(msg, cls = '') {
-  const el = document.getElementById('statusRow');
-  el.className = 'status-row' + (cls ? ' ' + cls : '');
-  el.innerHTML = msg
-    ? `<div class="status-dot"></div>${msg}`
-    : '';
+// ════════════ THEME ════════════
+function tTheme(){
+  const dk=document.body.getAttribute('data-theme')==='dark';
+  document.body.setAttribute('data-theme',dk?'light':'dark');
+  document.getElementById('thmBtn').innerHTML=dk?'🌙 '+T.dark:'☀️ '+T.light;
+}
+document.body.setAttribute('data-theme','light');
+
+// ════════════ PANEL TOGGLE ════════════
+function tp(hd){hd.classList.toggle('o');hd.nextElementSibling.classList.toggle('o');}
+
+// ════════════ MORE MODES ════════════
+function tMore(){
+  const x=document.getElementById('xtra');
+  const b=document.getElementById('moreBtn');
+  x.classList.toggle('on');
+  b.innerHTML=x.classList.contains('on')?`▴ <span>${T.mMore.replace('更多','收起').replace('More','Less').replace('他の','閉じる').replace('더 ','닫기 ')}</span>`:`▸ <span>${T.mMore}</span>`;
 }
 
-function setProgress(pct) {
-  document.getElementById('progFill').style.width = pct + '%';
+// ════════════ STATE ════════════
+let mode='green', cMode='none', cPrevMode='tight', busy=false, cropIdx=-1;
+let items=[]; // {file,origUrl,blob,status,origW,origH,outW,outH,fileSize}
+
+// ════════════ SETTERS ════════════
+function setM(m,el){mode=m;document.querySelectorAll('.mc').forEach(c=>c.classList.remove('on'));el.classList.add('on');document.getElementById('ccRow').classList.toggle('on',m==='custom');}
+function setCM(m,el){cMode=m;document.querySelectorAll('.cr-opt').forEach(o=>o.classList.remove('on'));el.classList.add('on');document.getElementById('padRow').classList.toggle('on',m==='pad');}
+function tCp(){document.getElementById('cpRow').classList.toggle('on',document.getElementById('chkCp').checked);}
+function tUni(){document.getElementById('uniRow').classList.toggle('on',document.getElementById('chkUni').checked);}
+function sv(id,v){document.getElementById(id).textContent=v;}
+function sHex(v){document.getElementById('chex').value=v;}
+function sPicker(v){if(/^#[0-9a-fA-F]{6}$/.test(v))document.getElementById('cpick').value=v;}
+function gCustomRGB(){const h=document.getElementById('chex').value;return{r:parseInt(h.slice(1,3),16),g:parseInt(h.slice(3,5),16),b:parseInt(h.slice(5,7),16)};}
+
+// ════════════ GLOBAL DROP ════════════
+let dc=0;
+document.addEventListener('dragenter',e=>{if([...e.dataTransfer.types].includes('Files')){dc++;document.getElementById('gDrop').classList.add('show');}});
+document.addEventListener('dragleave',()=>{dc=Math.max(0,dc-1);if(!dc)document.getElementById('gDrop').classList.remove('show');});
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{e.preventDefault();dc=0;document.getElementById('gDrop').classList.remove('show');if(e.dataTransfer.files.length)addFiles(e.dataTransfer.files);});
+
+// ════════════ ADD FILES ════════════
+function addFiles(files){
+  const fa=[...files].filter(f=>f.type.startsWith('image/')||f.name.match(/\.(gif)$/i));
+  fa.forEach(f=>{
+    const url=URL.createObjectURL(f);
+    const it={file:f,origUrl:url,blob:null,status:'pending',origW:0,origH:0,outW:0,outH:0,fileSize:0};
+    items.push(it);
+    const img=new Image();img.onload=()=>{it.origW=img.width;it.origH=img.height;render();};img.src=url;
+  });
+  if(fa.length)render();
 }
 
-function tick() { return new Promise(r => setTimeout(r, 8)); }
+// ════════════ FORMAT FILE SIZE ════════════
+function fmtSz(bytes){if(!bytes)return'';if(bytes<1024)return bytes+'B';if(bytes<1048576)return(bytes/1024).toFixed(1)+'KB';return(bytes/1048576).toFixed(2)+'MB';}
+
+// ════════════ RENDER ════════════
+function render(){
+  const grid=document.getElementById('imgGrid');
+  const empty=document.getElementById('emptyS');
+  const btnGo=document.getElementById('btnGo');
+  const btnRe=document.getElementById('btnRe');
+  const hasPend=items.some(it=>it.status==='pending'||it.status==='error');
+  const doneCnt=items.filter(it=>it.status==='done').length;
+  const wbg=document.getElementById('chkWbg').checked;
+  document.getElementById('totN').textContent=items.length;
+  const dw=document.getElementById('doneW');dw.style.display=doneCnt?'inline':'none';document.getElementById('doneN').textContent=doneCnt;
+  if(!items.length){empty.style.display='flex';grid.style.display='none';btnGo.disabled=true;btnRe.disabled=true;return;}
+  empty.style.display='none';grid.style.display='grid';
+  btnGo.disabled=busy||!hasPend;btnRe.disabled=busy;
+  grid.innerHTML='';
+  items.forEach((it,i)=>{
+    const card=document.createElement('div');card.className='img-card';card.dataset.s=it.status;
+    // thumb
+    const cth=document.createElement('div');cth.className='cthumb';
+    if(it.status==='done')cth.onclick=()=>openPrev(i);
+    const im=document.createElement('img');
+    if(it.blob){im.src=URL.createObjectURL(it.blob);}
+    else{im.src=it.origUrl;}
+    if(wbg&&it.status==='done')cth.style.background='#fff';
+    cth.appendChild(im);
+    // action buttons (vertical)
+    const acts=document.createElement('div');acts.className='cactions';
+    if(it.status==='done'){
+      acts.appendChild(mkAct('👁','cact cact-prev',T.actPrev,()=>openPrev(i)));
+      acts.appendChild(mkAct('⬇','cact cact-dl',T.actDl,()=>dlOne(it)));
+      acts.appendChild(mkAct('✂','cact cact-crop',T.actCrop,()=>openCrop(i)));
+    }
+    if(it.status==='done'||it.status==='error')acts.appendChild(mkAct('↺','cact cact-retry',T.actRetry,()=>retryOne(i)));
+    cth.appendChild(acts);
+    card.appendChild(cth);
+    // info
+    const ci=document.createElement('div');ci.className='cinfo';
+    const cn=document.createElement('div');cn.className='cname';cn.textContent=it.file.name;ci.appendChild(cn);
+    if(it.origW){
+      const sz=document.createElement('div');sz.className='csize-orig';
+      sz.textContent=`${T.oSz}: ${it.origW}×${it.origH}`;ci.appendChild(sz);
+    }
+    if(it.status==='done'&&it.outW){
+      const sz2=document.createElement('div');sz2.className='csize-out';
+      sz2.textContent=`${T.rSz}: ${it.outW}×${it.outH}`;ci.appendChild(sz2);
+    }
+    if(it.fileSize){
+      const fs=document.createElement('div');fs.className='cfilesize';
+      fs.textContent=`${T.fSz}: ${fmtSz(it.fileSize)}`;ci.appendChild(fs);
+    }
+    if(it.status!=='pending'){
+      const br=document.createElement('div');br.className='cbadge-row';
+      const bdg=document.createElement('div');bdg.className=`cbadge ${it.status}`;
+      bdg.textContent=it.status==='processing'?'⟳':it.status==='done'?'✓':'✕';
+      br.appendChild(bdg);ci.appendChild(br);
+    }
+    card.appendChild(ci);
+    grid.appendChild(card);
+  });
+}
+function mkAct(ico,cls,lbl,fn){
+  const b=document.createElement('button');b.className=cls;
+  b.innerHTML=`<div class="cact-ico">${ico}</div><div class="cact-lbl">${lbl}</div>`;
+  b.onclick=e=>{e.stopPropagation();fn();};return b;
+}
+
+// ════════════ COLOUR MATCH ════════════
+function isBg(r,g,b,tol){
+  if(mode==='white'||mode==='both'){const br=(r+g+b)/3,mx=Math.max(r,g,b),sat=mx===0?0:(mx-Math.min(r,g,b))/mx*255;if(br>=255-tol&&sat<=tol*.65)return true;}
+  if(mode==='green'||mode==='both'){if(g-Math.max(r,b)>42-tol*.28&&g>50&&r<215&&b<215)return true;}
+  if(mode==='blue'){if(b-Math.max(r,g)>42-tol*.28&&b>50&&r<215&&g<215)return true;}
+  if(mode==='custom'){const c=gCustomRGB();if(Math.abs(r-c.r)<=tol&&Math.abs(g-c.g)<=tol&&Math.abs(b-c.b)<=tol)return true;}
+  return false;
+}
+function gSim(r,g,b,tol){
+  let s=0;
+  if(mode==='white'||mode==='both'){const br=(r+g+b)/3,mx=Math.max(r,g,b),sat=mx===0?0:(mx-Math.min(r,g,b))/mx*255;s=Math.max(s,Math.min(1,Math.max(0,br-(255-tol*2.2))/(tol*2.2)*Math.max(0,tol*.65-sat)/(tol*.65)*1.6));}
+  if(mode==='green'||mode==='both')s=Math.max(s,Math.min(1,Math.max(0,(g-Math.max(r,b))-(42-tol*.55))/(tol*.55)));
+  if(mode==='blue')s=Math.max(s,Math.min(1,Math.max(0,(b-Math.max(r,g))-(42-tol*.55))/(tol*.55)));
+  if(mode==='custom'){const c=gCustomRGB();s=Math.max(s,Math.max(0,1-Math.sqrt((r-c.r)**2+(g-c.g)**2+(b-c.b)**2)/(tol*1.5)));}
+  return s;
+}
+function complexMask(d,W,H,tol){
+  const grey=new Float32Array(W*H);
+  for(let i=0;i<d.length;i+=4)grey[i>>2]=(d[i]*.299+d[i+1]*.587+d[i+2]*.114)/255;
+  const edge=new Float32Array(W*H);
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){const p=y*W+x;const gx=-grey[(y-1)*W+x-1]-2*grey[y*W+x-1]-grey[(y+1)*W+x-1]+grey[(y-1)*W+x+1]+2*grey[y*W+x+1]+grey[(y+1)*W+x+1];const gy=-grey[(y-1)*W+x-1]-2*grey[(y-1)*W+x]-grey[(y-1)*W+x+1]+grey[(y+1)*W+x-1]+2*grey[(y+1)*W+x]+grey[(y+1)*W+x+1];edge[p]=Math.sqrt(gx*gx+gy*gy);}
+  const thr=(tol/130)*.55+.07,isFg=new Uint8Array(W*H);for(let p=0;p<W*H;p++)if(edge[p]>thr)isFg[p]=1;
+  const vis=new Uint8Array(W*H),stk=new Int32Array(W*H);let top=0;
+  function seed(p){if(!isFg[p]&&!vis[p]){vis[p]=1;stk[top++]=p;}}
+  for(let x=0;x<W;x++){seed(x);seed((H-1)*W+x);}
+  for(let y=0;y<H;y++){seed(y*W);seed(y*W+W-1);}
+  while(top>0){const p=stk[--top],x=p%W,y=(p/W)|0;if(x>0&&!isFg[p-1]&&!vis[p-1]){vis[p-1]=1;stk[top++]=p-1;}if(x<W-1&&!isFg[p+1]&&!vis[p+1]){vis[p+1]=1;stk[top++]=p+1;}if(y>0&&!isFg[p-W]&&!vis[p-W]){vis[p-W]=1;stk[top++]=p-W;}if(y<H-1&&!isFg[p+W]&&!vis[p+W]){vis[p+W]=1;stk[top++]=p+W;}}
+  const rm=new Uint8Array(W*H);for(let p=0;p<W*H;p++)if(vis[p])rm[p]=1;return rm;
+}
+
+// ════════════ DEFRINGE ════════════
+function defringe(d,W,H,remove,tol){
+  // For each kept edge pixel, blend out the BG color contribution
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const p=y*W+x;if(remove[p])continue;
+    const i=p*4;if(d[i+3]<240){
+      // already semi-transparent - desaturate towards neutral
+      // simple: if color is close to BG color, reduce saturation
+      if(isBg(d[i],d[i+1],d[i+2],tol*0.5)){
+        d[i+3]=Math.round(d[i+3]*0.6);
+      }
+    }
+  }
+}
+
+// ════════════ COMPRESS PNG (using canvas re-encode) ════════════
+// We use an offscreen canvas with quality hint — for PNG we run a simple
+// pixel quantization pass to reduce unique colors → smaller file
+function compressPNG(canvas, quality) {
+  // quality 0..1: lower = more aggressive quantization
+  // Strategy: reduce alpha to 1-bit for near-transparent pixels (helps PNG compression)
+  const ctx = canvas.getContext('2d',{willReadFrequently:true});
+  const id = ctx.getImageData(0,0,canvas.width,canvas.height);
+  const d = id.data;
+  const thresh = Math.round((1-quality)*128); // 0 at q=1, 128 at q=0
+  for(let i=0;i<d.length;i+=4){
+    if(d[i+3]<thresh) d[i+3]=0;  // snap near-transparent to full-transparent
+    // Reduce color depth slightly for better LZ77 compression
+    const step = Math.max(1, Math.round((1-quality)*8));
+    if(step>1){
+      d[i]  =Math.round(d[i]  /step)*step;
+      d[i+1]=Math.round(d[i+1]/step)*step;
+      d[i+2]=Math.round(d[i+2]/step)*step;
+    }
+  }
+  ctx.putImageData(id,0,0);
+  return canvas;
+}
+
+// ════════════ CORE: removeBg ════════════
+async function removeBg(origUrl, item) {
+  const tol    = parseInt(document.getElementById('slTol').value);
+  const shrink = parseInt(document.getElementById('slShr').value);
+  const feather= parseInt(document.getElementById('slFth').value);
+  const doG    = document.getElementById('chkG').checked;
+  const doH    = document.getElementById('chkH').checked;
+  const doDf   = document.getElementById('chkDefringe').checked;
+  const doCp   = document.getElementById('chkCp').checked;
+  const qual   = parseInt(document.getElementById('slQ').value)/100;
+  const padPx  = parseInt(document.getElementById('slPad').value);
+  const doUni  = document.getElementById('chkUni').checked;
+  const uniW   = parseInt(document.getElementById('uniW').value);
+  const uniH   = parseInt(document.getElementById('uniH').value);
+
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const cv=document.getElementById('wc');cv.width=img.width;cv.height=img.height;
+      const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0);
+      const W=cv.width,H=cv.height,N=W*H;
+      const id=ctx.getImageData(0,0,W,H);const d=id.data;
+      let rm;
+      if(mode==='complex'){rm=complexMask(d,W,H,tol);}
+      else{
+        const bgMap=new Uint8Array(N);
+        for(let i=0;i<d.length;i+=4)bgMap[i>>2]=isBg(d[i],d[i+1],d[i+2],tol)?1:0;
+        const ob=new Uint8Array(N),stk=new Int32Array(N);let top=0;
+        function seed(p){if(bgMap[p]&&!ob[p]){ob[p]=1;stk[top++]=p;}}
+        for(let x=0;x<W;x++){seed(x);seed((H-1)*W+x);}
+        for(let y=0;y<H;y++){seed(y*W);seed(y*W+W-1);}
+        while(top>0){const p=stk[--top],x=p%W,y=(p/W)|0;if(x>0&&bgMap[p-1]&&!ob[p-1]){ob[p-1]=1;stk[top++]=p-1;}if(x<W-1&&bgMap[p+1]&&!ob[p+1]){ob[p+1]=1;stk[top++]=p+1;}if(y>0&&bgMap[p-W]&&!ob[p-W]){ob[p-W]=1;stk[top++]=p-W;}if(y<H-1&&bgMap[p+W]&&!ob[p+W]){ob[p+W]=1;stk[top++]=p+W;}}
+        rm=new Uint8Array(N);
+        for(let p=0;p<N;p++){if(ob[p]){rm[p]=1;continue;}if(doH&&bgMap[p])rm[p]=1;}
+      }
+      if(shrink>0){const cp=new Uint8Array(rm);for(let y=0;y<H;y++)for(let x=0;x<W;x++){const p=y*W+x;if(!cp[p]){let n=false;outer:for(let dy=-shrink;dy<=shrink;dy++)for(let dx=-shrink;dx<=shrink;dx++){const nx=x+dx,ny=y+dy;if(nx>=0&&nx<W&&ny>=0&&ny<H&&cp[ny*W+nx]){n=true;break outer;}}if(n)rm[p]=1;}}}
+      // apply alpha
+      for(let i=0;i<d.length;i+=4){
+        const p=i>>2;if(rm[p]){d[i+3]=0;continue;}
+        if(doG&&mode!=='complex'){const s=gSim(d[i],d[i+1],d[i+2],tol);if(s>0)d[i+3]=Math.round(d[i+3]*(1-s*.88));}
+        if(feather>0&&d[i+3]>0){const x=p%W,y=(p/W)|0;let md=feather+1;for(let dy=-feather;dy<=feather;dy++)for(let dx=-feather;dx<=feather;dx++){const nx=x+dx,ny=y+dy;if(nx>=0&&nx<W&&ny>=0&&ny<H&&rm[ny*W+nx]){const dist=Math.sqrt(dx*dx+dy*dy);if(dist<md)md=dist;}}if(md<=feather)d[i+3]=Math.min(d[i+3],Math.round((md/feather)*255));}
+      }
+      if(doDf&&mode!=='complex')defringe(d,W,H,rm,tol);
+      ctx.putImageData(id,0,0);
+      let out=cv;
+      if(cMode!=='none')out=cropCv(cv,cMode,cMode==='pad'?padPx:0);
+      if(doUni)out=uniformCv(out,uniW,uniH);
+      if(item){item.outW=out.width;item.outH=out.height;}
+
+      // Determine original file type for compression
+      const origType = item ? item.file.type : 'image/png';
+      const isPNG = origType==='image/png'||origType==='image/gif';
+
+      if(doCp){
+        if(isPNG){
+          // For PNG: quantize to reduce file size
+          compressPNG(out, qual);
+          out.toBlob(b=>{if(item)item.fileSize=b.size;res(b);},'image/png');
+        } else {
+          // For JPEG/WEBP: use quality parameter
+          out.toBlob(b=>{if(item)item.fileSize=b.size;res(b);},origType,qual);
+        }
+      } else {
+        out.toBlob(b=>{if(item)item.fileSize=b.size;res(b);},'image/png');
+      }
+    };
+    img.onerror=rej;img.src=origUrl;
+  });
+}
+
+// ════════════ CROP / UNIFORM ════════════
+function cropCv(src,cm,pad){
+  const W=src.width,H=src.height;
+  const d=src.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  let x0=W,y0=H,x1=0,y1=0;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){if(d[(y*W+x)*4+3]>8){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}}
+  if(x1<=x0||y1<=y0)return src;
+  const p=pad||0,ax=Math.max(0,x0-p),ay=Math.max(0,y0-p),bx=Math.min(W,x1+p+1),by=Math.min(H,y1+p+1);
+  const out=document.getElementById('wc2');out.width=bx-ax;out.height=by-ay;
+  const oc=out.getContext('2d');oc.clearRect(0,0,out.width,out.height);oc.drawImage(src,ax,ay,out.width,out.height,0,0,out.width,out.height);return out;
+}
+function uniformCv(src,uw,uh){
+  const out=document.getElementById('wc2');out.width=uw;out.height=uh;
+  const oc=out.getContext('2d');oc.clearRect(0,0,uw,uh);
+  const sc=Math.min(uw/src.width,uh/src.height,1),dw=src.width*sc,dh=src.height*sc;
+  oc.drawImage(src,(uw-dw)/2,(uh-dh)/2,dw,dh);return out;
+}
+
+// ════════════ RETRY ════════════
+async function retryOne(i){
+  if(busy)return;busy=true;
+  items[i].status='processing';items[i].blob=null;
+  render();setStat(T.retrying+': '+items[i].file.name);
+  try{items[i].blob=await removeBg(items[i].origUrl,items[i]);items[i].status='done';setStat('✓ '+T.retried+': '+items[i].file.name,'ok');}
+  catch(e){items[i].status='error';setStat(T.failed,'er');console.error(e);}
+  busy=false;render();
+}
+
+// ════════════ RUN ALL ════════════
+async function runAll(force=false){
+  if(busy||!items.length)return;busy=true;
+  document.getElementById('btnGo').disabled=true;document.getElementById('btnRe').disabled=true;
+  document.getElementById('progW').classList.add('on');
+  const tgts=force?items.map((_,i)=>i):items.map((it,i)=>(it.status==='pending'||it.status==='error')?i:-1).filter(i=>i>=0);
+  let ok=0,fail=0;
+  for(let ti=0;ti<tgts.length;ti++){
+    const i=tgts[ti];
+    items[i].status='processing';items[i].blob=null;
+    render();setStat(T.proc+' '+(ti+1)+'/'+tgts.length+': '+items[i].file.name);
+    setProg((ti/tgts.length)*100);
+    try{items[i].blob=await removeBg(items[i].origUrl,items[i]);items[i].status='done';ok++;}
+    catch(e){items[i].status='error';fail++;console.error(e);}
+    setProg(((ti+1)/tgts.length)*100);render();await tick();
+  }
+  busy=false;
+  setStat(fail?`${T.allD}: ${ok} ✓  ${fail} ${T.smFail}`:`✓ ${T.allD}，${ok} ${T.zhn}`,fail?'er':'ok');
+  showToast(fail?`${ok} ✓  ${fail} ✗`:`✓ ${ok} ${T.zhn}`,fail?'er':'ok');
+  render();
+}
+
+// ════════════ DOWNLOAD ════════════
+function getExt(it){
+  if(document.getElementById('chkCp').checked){
+    const t=it.file.type;
+    if(t==='image/jpeg')return'.jpg';
+    if(t==='image/webp')return'.webp';
+  }
+  return'.png';
+}
+function dlOne(it){
+  const url=URL.createObjectURL(it.blob);const a=document.createElement('a');
+  a.href=url;a.download=it.file.name.replace(/\.[^.]+$/,'')+getExt(it);a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function dlAll(){
+  const done=items.filter(it=>it.blob);
+  if(!done.length){showToast(T.failed,'er');return;}
+  if(done.length===1){dlOne(done[0]);return;}
+  try{
+    await ldScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+    const zip=new JSZip();
+    done.forEach(it=>zip.file(it.file.name.replace(/\.[^.]+$/,'')+getExt(it),it.blob));
+    const zb=await zip.generateAsync({type:'blob'});
+    const url=URL.createObjectURL(zb);const a=document.createElement('a');a.href=url;a.download='batchcut_results.zip';a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+    showToast(`✓ ZIP (${done.length} ${T.zhn})`,'ok');
+  }catch{for(const it of done){dlOne(it);await new Promise(r=>setTimeout(r,360));}}
+}
+function ldScript(src){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${src}"]`)){res();return;}const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+
+// ════════════ PREVIEW ════════════
+function openPrev(i){
+  const it=items[i];
+  document.getElementById('prevTtl').textContent=it.file.name;
+  document.getElementById('prevOrig').src=it.origUrl;
+  document.getElementById('prevRes').src=URL.createObjectURL(it.blob);
+  document.getElementById('prevOvl').classList.add('on');
+}
+function cPrev(e){if(!e||e.target===document.getElementById('prevOvl'))document.getElementById('prevOvl').classList.remove('on');}
+
+// ════════════ CROP MODAL ════════════
+function openCrop(i){
+  cropIdx=i;cPrevMode='tight';
+  document.getElementById('cropTtl').textContent='✂ '+items[i].file.name;
+  document.querySelectorAll('.cm-btn').forEach((b,n)=>b.classList.toggle('on',n===0));
+  document.getElementById('cmPad').innerHTML=`☐ <span>${T.cmPad}</span> (${document.getElementById('padV').textContent}px)`;
+  renderCropPrev();document.getElementById('cropOvl').classList.add('on');
+}
+function setCPrev(m,el){cPrevMode=m;document.querySelectorAll('.cm-btn').forEach(b=>b.classList.remove('on'));el.classList.add('on');renderCropPrev();}
+function renderCropPrev(){
+  const it=items[cropIdx];if(!it?.blob)return;
+  const padPx=parseInt(document.getElementById('slPad').value);
+  const img=new Image();
+  img.onload=()=>{
+    const src=document.getElementById('wc');src.width=img.width;src.height=img.height;
+    src.getContext('2d',{willReadFrequently:true}).drawImage(img,0,0);
+    const cr=cropCv(src,cPrevMode,cPrevMode==='pad'?padPx:0);
+    const out=document.getElementById('cpCanvas');out.width=cr.width;out.height=cr.height;
+    out.getContext('2d').drawImage(cr,0,0);
+  };
+  img.src=URL.createObjectURL(it.blob);
+}
+function applyCrop(){
+  const it=items[cropIdx];if(!it)return;
+  const padPx=parseInt(document.getElementById('slPad').value);
+  const img=new Image();
+  img.onload=()=>{
+    const src=document.getElementById('wc');src.width=img.width;src.height=img.height;
+    src.getContext('2d',{willReadFrequently:true}).drawImage(img,0,0);
+    const cr=cropCv(src,cPrevMode,cPrevMode==='pad'?padPx:0);
+    cr.toBlob(b=>{it.blob=b;it.outW=cr.width;it.outH=cr.height;it.fileSize=b.size;render();cCrop();showToast('✓ '+it.file.name,'ok');},'image/png');
+  };
+  img.src=URL.createObjectURL(it.blob);
+}
+function cropDl(){
+  const it=items[cropIdx];if(!it)return;
+  const padPx=parseInt(document.getElementById('slPad').value);
+  const img=new Image();
+  img.onload=()=>{
+    const src=document.getElementById('wc');src.width=img.width;src.height=img.height;
+    src.getContext('2d',{willReadFrequently:true}).drawImage(img,0,0);
+    cropCv(src,cPrevMode,cPrevMode==='pad'?padPx:0).toBlob(b=>{
+      const url=URL.createObjectURL(b);const a=document.createElement('a');
+      a.href=url;a.download=it.file.name.replace(/\.[^.]+$/,'')+`_crop.png`;a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+    },'image/png');
+  };
+  img.src=URL.createObjectURL(it.blob);
+}
+function cCrop(e){if(!e||e.target===document.getElementById('cropOvl'))document.getElementById('cropOvl').classList.remove('on');}
+
+// ════════════ CLEAR ════════════
+function clearAll(){items=[];document.getElementById('progW').classList.remove('on');setStat('');setProg(0);render();}
+
+// ════════════ HELPERS ════════════
+function setStat(msg,cls=''){const el=document.getElementById('statBar');el.className='stat-bar'+(cls?' '+cls:'');el.innerHTML=msg?`<div class="stat-dot"></div>${msg}`:'';}
+
+function setProg(p){document.getElementById('progF').style.width=p+'%';}
+function tick(){return new Promise(r=>setTimeout(r,8));}
+let toastTimer;
+function showToast(msg,cls=''){
+  const t=document.getElementById('toast');t.textContent=msg;t.className='toast on '+(cls||'');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.className='toast';},3000);
+}
+// init
+setLang('zh-TW');
 </script>
 </body>
 </html>
